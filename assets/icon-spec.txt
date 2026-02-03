@@ -1,0 +1,17 @@
+Compliance Autopilot Icon Specification
+========================================
+
+Format: PNG
+Dimensions: 128x128 pixels
+Design: Shield with checkmark symbol
+Colors: Blue (#0066CC) and Green (#00AA00)
+Style: Modern, flat design with subtle gradient
+Purpose: GitHub Marketplace listing icon
+
+Design Notes:
+- Shield represents security/compliance
+- Checkmark represents verification/approval
+- Professional appearance for enterprise audience
+- Should be recognizable at small sizes (32x32)
+
+Placeholder Status: Awaiting final design asset

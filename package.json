@@ -1,0 +1,62 @@
+{
+  "name": "compliance-autopilot",
+  "version": "1.0.0",
+  "description": "Automate SOC2, GDPR, and ISO27001 compliance evidence collection",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "package": "ncc build src/index.ts -o dist --minify",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage",
+    "lint": "eslint src/",
+    "lint:fix": "eslint src/ --fix",
+    "format": "prettier --write \"src/**/*.ts\"",
+    "typecheck": "tsc --noEmit",
+    "validate": "npm run typecheck && npm run lint && npm run test",
+    "clean": "rm -rf dist coverage"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/m0rphsec/compliance-autopilot.git"
+  },
+  "keywords": [
+    "compliance",
+    "soc2",
+    "gdpr",
+    "iso27001",
+    "security",
+    "audit",
+    "github-actions"
+  ],
+  "author": "m0rphsec",
+  "license": "MIT",
+  "dependencies": {
+    "@actions/core": "^3.0.0",
+    "@actions/github": "^9.0.0",
+    "@actions/http-client": "^4.0.0",
+    "@anthropic-ai/sdk": "^0.20.0",
+    "@octokit/rest": "^20.0.2",
+    "pdf-lib": "^1.17.1"
+  },
+  "devDependencies": {
+    "@octokit/plugin-retry": "^8.0.3",
+    "@octokit/plugin-throttling": "^11.0.3",
+    "@types/jest": "^29.5.11",
+    "@types/node": "^20.11.5",
+    "@typescript-eslint/eslint-plugin": "^8.54.0",
+    "@typescript-eslint/parser": "^8.54.0",
+    "@vercel/ncc": "^0.38.1",
+    "eslint": "^9.39.2",
+    "eslint-config-google": "^0.14.0",
+    "eslint-config-prettier": "^9.1.0",
+    "jest": "^29.7.0",
+    "prettier": "^3.2.4",
+    "ts-jest": "^29.1.1",
+    "typescript": "^5.3.3",
+    "typescript-eslint": "^8.54.0"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}

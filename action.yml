@@ -1,0 +1,53 @@
+name: 'Compliance Autopilot'
+description: 'Automate SOC2, GDPR, and ISO27001 compliance evidence collection'
+author: 'm0rphsec'
+
+branding:
+  icon: 'shield'
+  color: 'blue'
+
+inputs:
+  github-token:
+    description: 'GitHub token for API access'
+    required: true
+    default: ${{ github.token }}
+
+  anthropic-api-key:
+    description: 'Anthropic API key for Claude analysis'
+    required: true
+
+  frameworks:
+    description: 'Comma-separated frameworks to check (soc2,gdpr,iso27001)'
+    required: false
+    default: 'soc2'
+
+  report-format:
+    description: 'Report format (pdf, json, or both)'
+    required: false
+    default: 'both'
+
+  fail-on-violations:
+    description: 'Fail the workflow if compliance violations are found'
+    required: false
+    default: 'false'
+
+  slack-webhook:
+    description: 'Slack webhook URL for alerts (optional)'
+    required: false
+
+outputs:
+  compliance-status:
+    description: 'Overall compliance status (PASS or FAIL)'
+
+  controls-passed:
+    description: 'Number of controls that passed'
+
+  controls-total:
+    description: 'Total number of controls checked'
+
+  report-url:
+    description: 'URL to the generated compliance report'
+
+runs:
+  using: 'node20'
+  main: 'dist/index.js'

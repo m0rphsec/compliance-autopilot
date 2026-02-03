@@ -1,0 +1,22 @@
+Compliance Autopilot Demo GIF Specification
+===========================================
+
+Format: Animated GIF
+Duration: 15-30 seconds
+Size: < 5 MB (GitHub requirement)
+Dimensions: 1200x800 pixels recommended
+
+Content Flow:
+1. Show GitHub Actions workflow triggering (2-3s)
+2. Compliance scan running with progress (3-4s)
+3. Evidence collection in action (3-4s)
+4. Results displayed in PR comment (3-4s)
+5. PDF report generation preview (2-3s)
+
+Key Features to Demonstrate:
+- Automated compliance checks
+- Real-time evidence collection
+- Clear reporting and visualization
+- GitHub integration workflow
+
+Placeholder Status: Awaiting screen recording and optimization
