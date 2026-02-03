@@ -1,0 +1,81 @@
+name: Publish Release
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  publish:
+    name: Build and Publish
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20.x
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run validation
+        run: npm run validate
+
+      - name: Build project
+        run: npm run build
+
+      - name: Package action
+        run: npm run package
+
+      - name: Verify dist
+        run: |
+          if [ ! -f dist/index.js ]; then
+            echo "Error: dist/index.js not found"
+            exit 1
+          fi
+
+      - name: Commit dist
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add dist/
+          git diff --staged --quiet || git commit -m "Build: Update dist for ${{ github.event.release.tag_name }}"
+
+      - name: Push changes
+        uses: ad-m/github-push-action@master
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          branch: ${{ github.ref }}
+
+      - name: Create release assets
+        run: |
+          tar -czf compliance-autopilot-${{ github.event.release.tag_name }}.tar.gz \
+            dist/ \
+            action.yml \
+            README.md \
+            LICENSE
+
+      - name: Upload release assets
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ github.event.release.upload_url }}
+          asset_path: ./compliance-autopilot-${{ github.event.release.tag_name }}.tar.gz
+          asset_name: compliance-autopilot-${{ github.event.release.tag_name }}.tar.gz
+          asset_content_type: application/gzip
+
+  notify:
+    name: Notify Release
+    runs-on: ubuntu-latest
+    needs: publish
+
+    steps:
+      - name: Notify success
+        run: |
+          echo "✅ Release ${{ github.event.release.tag_name }} published successfully"
+          echo "📦 GitHub Marketplace: https://github.com/marketplace/actions/compliance-autopilot"
