@@ -114,9 +114,9 @@ async function run(): Promise<void> {
       userAgent: 'compliance-autopilot/1.0.0',
     });
 
-    // Verify API access
-    const { data: user } = await octokit.rest.users.getAuthenticated();
-    logger.info('GitHub API authenticated', { username: user.login });
+    // Verify API access by checking the target repo (works with GITHUB_TOKEN)
+    // Note: octokit.rest.users.getAuthenticated() doesn't work with the
+    // default GITHUB_TOKEN in Actions, so we verify via repo access instead.
 
     // Check if repo is private and re-enforce license limits
     const { data: repoData } = await octokit.rest.repos.get({

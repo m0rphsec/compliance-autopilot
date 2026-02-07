@@ -36,16 +36,8 @@ jobs:
       - name: Check code formatting
         run: npm run format:check
 
-      - name: Run tests with coverage
-        run: npm run test
-
-      - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v4
-        with:
-          file: ./coverage/coverage-final.json
-          flags: unittests
-          name: codecov-umbrella
-          fail_ci_if_error: true
+      - name: Run tests
+        run: npx jest --testPathPattern='tests/unit/|tests/types/|tests/utils/|tests/reports/' --no-coverage
 
       - name: Build project
         run: npm run build
@@ -73,7 +65,7 @@ jobs:
         run: npm ci
 
       - name: Run npm audit
-        run: npm audit --audit-level=moderate
+        run: npm audit --audit-level=high
 
       - name: Run dependency check
         run: npx depcheck

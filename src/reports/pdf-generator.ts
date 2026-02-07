@@ -537,7 +537,7 @@ export class PDFGenerator {
       .replace(/[\u2013\u2014]/g, '-') // En/Em dash to regular dash
       .replace(/[\u2026]/g, '...') // Ellipsis
       .replace(/[\u00A0]/g, ' ') // Non-breaking space
-      .replace(/[^\x00-\xFF]/g, ''); // Remove any other non-Latin1 chars
+      .replace(/[^\u0020-\u00FF]/g, ''); // Remove any other non-Latin1 chars
   }
 
   private drawText(

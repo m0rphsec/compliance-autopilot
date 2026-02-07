@@ -8,6 +8,11 @@ on:
   schedule:
     - cron: '0 9 * * *'  # 9 AM daily
 
+permissions:
+  contents: write
+  pull-requests: write
+  issues: read
+
 jobs:
   self-compliance:
     name: Run Compliance Autopilot on Itself
