@@ -433,12 +433,29 @@ async function collectSourceFiles(): Promise<Array<{ code: string; path: string 
   const files: Array<{ code: string; path: string }> = [];
   const cwd = process.cwd();
   const skipDirs = new Set([
-    'node_modules', 'dist', '.git', 'coverage',
-    '.github', 'assets', '__pycache__', '.next', '.nuxt',
+    'node_modules',
+    'dist',
+    '.git',
+    'coverage',
+    '.github',
+    'assets',
+    '__pycache__',
+    '.next',
+    '.nuxt',
   ]);
   const sourceExts = new Set([
-    '.ts', '.js', '.tsx', '.jsx', '.py', '.java',
-    '.go', '.rb', '.php', '.cs', '.rs', '.swift',
+    '.ts',
+    '.js',
+    '.tsx',
+    '.jsx',
+    '.py',
+    '.java',
+    '.go',
+    '.rb',
+    '.php',
+    '.cs',
+    '.rs',
+    '.swift',
   ]);
   const maxFileSize = 50_000; // 50KB per file
   const maxFiles = 50;
@@ -494,9 +511,7 @@ async function generateReports(
   try {
     // Prepare report data for generators
     const framework = report.frameworks[0]?.framework?.toUpperCase() || 'SOC2';
-    const allFrameworks = report.frameworks.map(
-      (fw) => fw.framework.toUpperCase()
-    );
+    const allFrameworks = report.frameworks.map((fw) => fw.framework.toUpperCase());
 
     const complianceData: ComplianceData = {
       framework: framework as 'SOC2' | 'GDPR' | 'ISO27001',

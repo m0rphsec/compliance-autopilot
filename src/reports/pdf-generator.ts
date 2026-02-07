@@ -196,9 +196,7 @@ export class PDFGenerator {
 
     for (const fw of frameworkList) {
       const fwText = fw.toUpperCase();
-      const textWidth = this.fonts.bold.widthOfTextAtSize(
-        fwText, FONT_SIZES.heading3
-      );
+      const textWidth = this.fonts.bold.widthOfTextAtSize(fwText, FONT_SIZES.heading3);
       const badgeWidth = textWidth + 24;
 
       this.currentPage.drawRectangle({
