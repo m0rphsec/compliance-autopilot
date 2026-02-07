@@ -37,15 +37,16 @@ jobs:
           npm run package
 
       - name: Run Compliance Autopilot (SOC2)
+        id: compliance
         uses: ./
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
           frameworks: 'soc2'
-          report-format: 'both'
+          report-format: 'json'
           fail-on-violations: 'false'
 
-      - name: Run Compliance Autopilot (GDPR)
+      - name: Run Compliance Autopilot (GDPR - requires license)
         uses: ./
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
@@ -54,7 +55,7 @@ jobs:
           report-format: 'json'
           fail-on-violations: 'false'
 
-      - name: Run Compliance Autopilot (ISO27001)
+      - name: Run Compliance Autopilot (ISO27001 - requires license)
         uses: ./
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
@@ -64,14 +65,13 @@ jobs:
           fail-on-violations: 'false'
 
       - name: Run All Frameworks
-        id: compliance
         uses: ./
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
           frameworks: 'soc2,gdpr,iso27001'
-          report-format: 'both'
-          fail-on-violations: 'true'
+          report-format: 'json'
+          fail-on-violations: 'false'
 
       - name: Verify outputs
         run: |

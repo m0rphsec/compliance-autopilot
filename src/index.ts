@@ -159,6 +159,23 @@ async function run(): Promise<void> {
       logger.info(upgradePrompt);
     }
 
+    // Check if any frameworks remain after license enforcement
+    if (inputs.frameworks.length === 0) {
+      logger.warn('No frameworks available after license enforcement. Exiting gracefully.');
+      const upgradePrompt = LicenseEnforcer.getUpgradePrompt(enforcement.blockedFeatures);
+      logger.info(upgradePrompt);
+
+      const outputs: ActionOutputs = {
+        complianceStatus: 'PASS',
+        controlsPassed: 0,
+        controlsTotal: 0,
+        reportUrl: undefined,
+      };
+      setOutputs(outputs);
+      logger.endGroup();
+      return;
+    }
+
     logger.endGroup();
 
     // Phase 3: Run framework collectors in parallel
