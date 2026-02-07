@@ -32,6 +32,9 @@ exports[`JSONFormatter snapshot testing should match JSON structure snapshot 1`]
     },
   ],
   "framework": "SOC2",
+  "frameworks": [
+    "SOC2",
+  ],
   "metadata": {
     "generatedAt": "2026-01-01T00:00:00.000Z",
     "generator": "Compliance Autopilot",

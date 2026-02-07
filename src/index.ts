@@ -341,9 +341,10 @@ async function collectEvidence(
           const gdprCollector = new GDPRCollector({
             apiKey: inputs.anthropicApiKey,
           });
-          // For GDPR, we need to get source files to scan
-          // For now, return a basic result - full implementation would scan repo files
-          const gdprResult = await gdprCollector.scanRepository([]);
+          // Collect source files from the checked-out repo for GDPR scanning
+          const sourceFiles = await collectSourceFiles();
+          logger.info(`GDPR scanning ${sourceFiles.length} source files`);
+          const gdprResult = await gdprCollector.scanRepository(sourceFiles);
           collectorReport = {
             id: `gdpr-${Date.now()}`,
             framework: 'GDPR',
@@ -426,6 +427,60 @@ async function collectEvidence(
 }
 
 /**
+ * Collect source files from the checked-out repository for GDPR scanning
+ */
+async function collectSourceFiles(): Promise<Array<{ code: string; path: string }>> {
+  const files: Array<{ code: string; path: string }> = [];
+  const cwd = process.cwd();
+  const skipDirs = new Set([
+    'node_modules', 'dist', '.git', 'coverage',
+    '.github', 'assets', '__pycache__', '.next', '.nuxt',
+  ]);
+  const sourceExts = new Set([
+    '.ts', '.js', '.tsx', '.jsx', '.py', '.java',
+    '.go', '.rb', '.php', '.cs', '.rs', '.swift',
+  ]);
+  const maxFileSize = 50_000; // 50KB per file
+  const maxFiles = 50;
+
+  async function walk(dir: string) {
+    if (files.length >= maxFiles) return;
+    let entries;
+    try {
+      entries = await fs.readdir(dir, { withFileTypes: true });
+    } catch {
+      return;
+    }
+    for (const entry of entries) {
+      if (files.length >= maxFiles) break;
+      const fullPath = path.join(dir, entry.name);
+      if (entry.isDirectory()) {
+        if (!skipDirs.has(entry.name)) {
+          await walk(fullPath);
+        }
+      } else if (entry.isFile()) {
+        const ext = path.extname(entry.name).toLowerCase();
+        if (sourceExts.has(ext)) {
+          try {
+            const stat = await fs.stat(fullPath);
+            if (stat.size <= maxFileSize) {
+              const code = await fs.readFile(fullPath, 'utf-8');
+              const relPath = path.relative(cwd, fullPath);
+              files.push({ code, path: relPath });
+            }
+          } catch {
+            // Skip files we can't read
+          }
+        }
+      }
+    }
+  }
+
+  await walk(cwd);
+  return files;
+}
+
+/**
  * Generate PDF and/or JSON reports
  */
 async function generateReports(
@@ -438,10 +493,14 @@ async function generateReports(
 
   try {
     // Prepare report data for generators
-    const framework = report.frameworks[0]?.framework?.toUpperCase() || 'COMPLIANCE';
+    const framework = report.frameworks[0]?.framework?.toUpperCase() || 'SOC2';
+    const allFrameworks = report.frameworks.map(
+      (fw) => fw.framework.toUpperCase()
+    );
 
     const complianceData: ComplianceData = {
       framework: framework as 'SOC2' | 'GDPR' | 'ISO27001',
+      frameworks: allFrameworks,
       timestamp: new Date(report.timestamp),
       repositoryName: githubContext.repo,
       repositoryOwner: githubContext.owner,

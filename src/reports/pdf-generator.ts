@@ -8,6 +8,7 @@ import { PDFDocument, rgb, StandardFonts, PDFPage, PDFFont } from 'pdf-lib';
 
 export interface ComplianceData {
   framework: 'SOC2' | 'GDPR' | 'ISO27001';
+  frameworks?: string[];
   timestamp: Date;
   repositoryName: string;
   repositoryOwner: string;
@@ -93,9 +94,10 @@ export class PDFGenerator {
     this.pdfDoc = await PDFDocument.create();
 
     // Set metadata for accessibility
-    this.pdfDoc.setTitle(`${data.framework} Compliance Report - ${data.repositoryName}`);
+    const allFrameworks = (data.frameworks || [data.framework]).join(', ');
+    this.pdfDoc.setTitle(`${allFrameworks} Compliance Report - ${data.repositoryName}`);
     this.pdfDoc.setAuthor('Compliance Autopilot');
-    this.pdfDoc.setSubject(`${data.framework} Compliance Evidence Report`);
+    this.pdfDoc.setSubject(`${allFrameworks} Compliance Evidence Report`);
     this.pdfDoc.setKeywords([data.framework, 'compliance', 'audit', data.repositoryName]);
     this.pdfDoc.setCreator('Compliance Autopilot v1.0.0');
     this.pdfDoc.setProducer('pdf-lib');
@@ -167,7 +169,7 @@ export class PDFGenerator {
     const { width, height } = this.currentPage.getSize();
     this.currentY = height - MARGINS.top;
 
-    // Header with gradient effect (simulated with rectangles)
+    // Header band
     this.currentPage.drawRectangle({
       x: 0,
       y: height - 200,
@@ -176,53 +178,62 @@ export class PDFGenerator {
       color: COLORS.primary,
     });
 
-    // Title
+    // Title (sized to not overlap with score circle)
     this.currentPage.drawText('COMPLIANCE REPORT', {
       x: MARGINS.left,
-      y: height - 100,
-      size: FONT_SIZES.title,
+      y: height - 80,
+      size: 28,
       font: this.fonts.bold,
       color: COLORS.white,
     });
 
-    // Framework badge
-    const frameworkText = data.framework;
-    const badgeWidth = 150;
-    const badgeHeight = 40;
-    const badgeX = MARGINS.left;
-    const badgeY = height - 160;
+    // Framework badges - show all frameworks
+    const frameworkList = data.frameworks || [data.framework];
+    const badgeHeight = 30;
+    const badgeSpacing = 10;
+    let badgeX = MARGINS.left;
+    const badgeY = height - 130;
 
-    this.currentPage.drawRectangle({
-      x: badgeX,
-      y: badgeY,
-      width: badgeWidth,
-      height: badgeHeight,
-      color: COLORS.secondary,
-    });
+    for (const fw of frameworkList) {
+      const fwText = fw.toUpperCase();
+      const textWidth = this.fonts.bold.widthOfTextAtSize(
+        fwText, FONT_SIZES.heading3
+      );
+      const badgeWidth = textWidth + 24;
 
-    this.currentPage.drawText(frameworkText, {
-      x: badgeX + 20,
-      y: badgeY + 12,
-      size: FONT_SIZES.heading2,
-      font: this.fonts.bold,
-      color: COLORS.white,
-    });
+      this.currentPage.drawRectangle({
+        x: badgeX,
+        y: badgeY,
+        width: badgeWidth,
+        height: badgeHeight,
+        color: COLORS.secondary,
+      });
 
-    // Compliance score circle
-    const scoreX = width - MARGINS.right - 120;
-    const scoreY = height - 140;
-    const scoreRadius = 80;
+      this.currentPage.drawText(fwText, {
+        x: badgeX + 12,
+        y: badgeY + 9,
+        size: FONT_SIZES.heading3,
+        font: this.fonts.bold,
+        color: COLORS.white,
+      });
 
-    // Circle background
+      badgeX += badgeWidth + badgeSpacing;
+    }
+
+    // Compliance score circle (positioned in upper-right of header)
+    const scoreRadius = 60;
+    const scoreX = width - MARGINS.right - scoreRadius;
+    const scoreY = height - 100;
+
     this.drawCircle(scoreX, scoreY, scoreRadius, this.getScoreColor(data.overallScore));
 
-    // Score text
     const scoreText = `${data.overallScore.toFixed(1)}%`;
-    const scoreWidth = this.fonts.bold.widthOfTextAtSize(scoreText, FONT_SIZES.title);
+    const scoreTextSize = 26;
+    const scoreWidth = this.fonts.bold.widthOfTextAtSize(scoreText, scoreTextSize);
     this.currentPage.drawText(scoreText, {
       x: scoreX - scoreWidth / 2,
-      y: scoreY - 12,
-      size: FONT_SIZES.title,
+      y: scoreY - 10,
+      size: scoreTextSize,
       font: this.fonts.bold,
       color: COLORS.white,
     });
@@ -277,8 +288,9 @@ export class PDFGenerator {
 
     this.currentY -= 20;
 
+    const frameworkLabel = (data.frameworks || [data.framework]).join(', ');
     this.drawText(
-      `This report summarizes the ${data.framework} compliance assessment for ` +
+      `This report summarizes the ${frameworkLabel} compliance assessment for ` +
         `${data.repositoryOwner}/${data.repositoryName} as of ${this.formatDate(data.timestamp)}.`,
       {
         font: this.fonts.regular,

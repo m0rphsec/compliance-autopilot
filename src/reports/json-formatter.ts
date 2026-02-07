@@ -18,6 +18,7 @@ interface FormattedOutput {
     generatedAt: string;
   };
   framework: string;
+  frameworks: string[];
   timestamp: string;
   repository: {
     name: string;
@@ -311,6 +312,7 @@ export class JSONFormatter {
         generatedAt: new Date().toISOString(),
       },
       framework: data.framework,
+      frameworks: data.frameworks || [data.framework],
       timestamp: data.timestamp.toISOString(),
       repository: {
         name: data.repositoryName,
