@@ -18,7 +18,11 @@ import {
   ActionOutputs,
   GitHubContext,
   ComplianceFramework,
+  GDPRCollectorResult,
+  ControlResult,
+  ControlEvaluation,
 } from './types';
+import { ComplianceFramework as CFEnum, Severity } from './types/evidence';
 import { createLogger } from './utils/logger';
 import { parseInputs, getGitHubContext, validatePermissions } from './utils/config';
 import {
@@ -345,6 +349,15 @@ async function collectEvidence(
           const sourceFiles = await collectSourceFiles();
           logger.info(`GDPR scanning ${sourceFiles.length} source files`);
           const gdprResult = await gdprCollector.scanRepository(sourceFiles);
+
+          // Build proper GDPR control evaluations from scan results
+          const gdprEvaluations = buildGDPREvaluations(gdprResult);
+          const gdprPassed = gdprEvaluations.filter((e) => e.result === ControlResult.PASS).length;
+          const gdprFailed = gdprEvaluations.filter((e) => e.result === ControlResult.FAIL).length;
+          const gdprNA = gdprEvaluations.filter(
+            (e) => e.result === ControlResult.NOT_APPLICABLE
+          ).length;
+
           collectorReport = {
             id: `gdpr-${Date.now()}`,
             framework: 'GDPR',
@@ -355,16 +368,16 @@ async function collectEvidence(
               end: new Date().toISOString(),
             },
             summary: {
-              totalControls: gdprResult.violations.length > 0 ? gdprResult.violations.length : 5,
-              passedControls: gdprResult.compliant ? 5 : 0,
-              failedControls: gdprResult.violations.length,
+              totalControls: gdprEvaluations.length,
+              passedControls: gdprPassed,
+              failedControls: gdprFailed,
               partialControls: 0,
-              notApplicableControls: 0,
+              notApplicableControls: gdprNA,
               errorControls: 0,
               compliancePercentage: gdprResult.score,
               severityBreakdown: { critical: 0, high: 0, medium: 0, low: 0, info: 0 },
             },
-            evaluations: [],
+            evaluations: gdprEvaluations,
           };
           break;
         }
@@ -424,6 +437,133 @@ async function collectEvidence(
 
   results.push(...(await Promise.all(collectionPromises)));
   return results;
+}
+
+/**
+ * Build proper GDPR ControlEvaluation entries from scan results.
+ * Maps GDPR collector findings to specific GDPR articles.
+ */
+function buildGDPREvaluations(result: GDPRCollectorResult): ControlEvaluation[] {
+  const now = new Date().toISOString();
+  const noPII = result.summary.files_with_pii === 0;
+
+  // Group violations by category for control-level assessment
+  const violationsByType: Record<string, GDPRCollectorResult['violations']> = {};
+  for (const v of result.violations) {
+    const key = v.description.toLowerCase();
+    if (key.includes('encryption in transit') || key.includes('https') || key.includes('tls')) {
+      (violationsByType['transit'] ??= []).push(v);
+    } else if (key.includes('encryption at rest') || key.includes('database encryption')) {
+      (violationsByType['rest'] ??= []).push(v);
+    } else if (key.includes('consent')) {
+      (violationsByType['consent'] ??= []).push(v);
+    } else if (key.includes('retention')) {
+      (violationsByType['retention'] ??= []).push(v);
+    } else if (key.includes('deletion')) {
+      (violationsByType['deletion'] ??= []).push(v);
+    } else {
+      (violationsByType['other'] ??= []).push(v);
+    }
+  }
+
+  const makeEval = (
+    id: string,
+    name: string,
+    pass: boolean,
+    na: boolean,
+    notes: string,
+    findings: string[]
+  ): ControlEvaluation => ({
+    controlId: id,
+    controlName: name,
+    framework: CFEnum.GDPR,
+    result: na ? ControlResult.NOT_APPLICABLE : pass ? ControlResult.PASS : ControlResult.FAIL,
+    evidence: [],
+    evaluatedAt: now,
+    notes,
+    severity: pass || na ? undefined : Severity.HIGH,
+    findings: pass || na ? [] : findings,
+  });
+
+  const transitViolations = violationsByType['transit'] || [];
+  const restViolations = violationsByType['rest'] || [];
+  const consentViolations = violationsByType['consent'] || [];
+  const retentionViolations = violationsByType['retention'] || [];
+  const deletionViolations = violationsByType['deletion'] || [];
+  const otherViolations = violationsByType['other'] || [];
+
+  return [
+    makeEval(
+      'GDPR-5.1f',
+      'Data Security - Encryption in Transit (Art. 5(1)(f))',
+      transitViolations.length === 0,
+      noPII,
+      noPII
+        ? 'No PII detected in source files.'
+        : transitViolations.length === 0
+          ? 'HTTPS/TLS usage detected in files handling PII.'
+          : `${transitViolations.length} file(s) lack encryption in transit.`,
+      transitViolations.map((v) => `${v.file}: ${v.recommendation}`)
+    ),
+    makeEval(
+      'GDPR-32',
+      'Security of Processing - Encryption at Rest (Art. 32)',
+      restViolations.length === 0,
+      noPII,
+      noPII
+        ? 'No PII detected in source files.'
+        : restViolations.length === 0
+          ? 'Database encryption patterns detected.'
+          : `${restViolations.length} file(s) lack encryption at rest.`,
+      restViolations.map((v) => `${v.file}: ${v.recommendation}`)
+    ),
+    makeEval(
+      'GDPR-7',
+      'Conditions for Consent (Art. 7)',
+      consentViolations.length === 0,
+      noPII,
+      noPII
+        ? 'No PII detected in source files.'
+        : consentViolations.length === 0
+          ? 'Consent mechanisms detected in codebase.'
+          : `${consentViolations.length} file(s) lack consent mechanisms.`,
+      consentViolations.map((v) => `${v.file}: ${v.recommendation}`)
+    ),
+    makeEval(
+      'GDPR-5.1e',
+      'Storage Limitation - Data Retention (Art. 5(1)(e))',
+      retentionViolations.length === 0,
+      noPII,
+      noPII
+        ? 'No PII detected in source files.'
+        : retentionViolations.length === 0
+          ? 'Data retention policies detected.'
+          : `${retentionViolations.length} file(s) lack retention policies.`,
+      retentionViolations.map((v) => `${v.file}: ${v.recommendation}`)
+    ),
+    makeEval(
+      'GDPR-17',
+      'Right to Erasure (Art. 17)',
+      deletionViolations.length === 0,
+      noPII,
+      noPII
+        ? 'No PII detected in source files.'
+        : deletionViolations.length === 0
+          ? 'Data deletion capabilities detected.'
+          : `${deletionViolations.length} file(s) lack deletion capabilities.`,
+      deletionViolations.map((v) => `${v.file}: ${v.recommendation}`)
+    ),
+    makeEval(
+      'GDPR-6',
+      'PII Processing Controls (Art. 6)',
+      otherViolations.length === 0 && result.summary.files_with_pii <= 0,
+      false,
+      result.summary.files_with_pii > 0
+        ? `${result.summary.files_with_pii} of ${result.summary.total_files_scanned} files contain PII.`
+        : `${result.summary.total_files_scanned} files scanned, no PII detected.`,
+      otherViolations.map((v) => `${v.file}: ${v.description}`)
+    ),
+  ];
 }
 
 /**
