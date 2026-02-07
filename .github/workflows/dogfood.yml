@@ -36,41 +36,15 @@ jobs:
           npm run build
           npm run package
 
-      - name: Run Compliance Autopilot (SOC2)
+      - name: Run All Frameworks (PDF + JSON)
         id: compliance
         uses: ./
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
-          frameworks: 'soc2'
-          report-format: 'json'
-          fail-on-violations: 'false'
-
-      - name: Run Compliance Autopilot (GDPR - requires license)
-        uses: ./
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
-          frameworks: 'gdpr'
-          report-format: 'json'
-          fail-on-violations: 'false'
-
-      - name: Run Compliance Autopilot (ISO27001 - requires license)
-        uses: ./
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
-          frameworks: 'iso27001'
-          report-format: 'json'
-          fail-on-violations: 'false'
-
-      - name: Run All Frameworks
-        uses: ./
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
+          license-key: ${{ secrets.LICENSE_KEY }}
           frameworks: 'soc2,gdpr,iso27001'
-          report-format: 'json'
+          report-format: 'both'
           fail-on-violations: 'false'
 
       - name: Verify outputs
@@ -79,6 +53,9 @@ jobs:
           echo "Controls Passed: ${{ steps.compliance.outputs.controls-passed }}"
           echo "Controls Total: ${{ steps.compliance.outputs.controls-total }}"
           echo "Report URL: ${{ steps.compliance.outputs.report-url }}"
+          echo ""
+          echo "Generated files:"
+          ls -la compliance-report-*.pdf compliance-evidence-*.json 2>/dev/null || echo "No report files found"
 
       - name: Upload compliance reports
         uses: actions/upload-artifact@v4
