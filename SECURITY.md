@@ -99,7 +99,7 @@ function validateInputs(inputs: ActionInputs): void {
 
 - **Automated Scanning**: Dependabot enabled for vulnerability alerts
 - **Regular Updates**: Dependencies updated monthly
-- **Version Pinning**: All dependencies use exact versions (no ^ or ~)
+- **Version Pinning**: Dependencies use semver ranges with caret (^) for minor/patch updates
 - **Audit Before Release**: `npm audit` required to pass before every release
 
 Current Status: ✅ **Zero Known Vulnerabilities**
@@ -143,14 +143,14 @@ permissions:
 
 **✅ DO:**
 ```yaml
-- uses: yourusername/compliance-autopilot@v1
+- uses: m0rphsec/compliance-autopilot@v1
   with:
     anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}  # ✅ Use secrets
 ```
 
 **❌ DON'T:**
 ```yaml
-- uses: yourusername/compliance-autopilot@v1
+- uses: m0rphsec/compliance-autopilot@v1
   with:
     anthropic-api-key: 'sk-ant-1234567890'  # ❌ Never hardcode
 ```
@@ -159,14 +159,14 @@ permissions:
 
 **✅ DO:**
 ```yaml
-- uses: yourusername/compliance-autopilot@v1
+- uses: m0rphsec/compliance-autopilot@v1
   with:
     slack-webhook: ${{ secrets.SLACK_WEBHOOK }}  # ✅ Use secrets
 ```
 
 **❌ DON'T:**
 ```yaml
-- uses: yourusername/compliance-autopilot@v1
+- uses: m0rphsec/compliance-autopilot@v1
   with:
     slack-webhook: 'https://hooks.slack.com/...'  # ❌ Never expose
 ```
@@ -229,13 +229,7 @@ These are documented trade-offs:
 ### Internal Audits
 
 - **Monthly**: Dependency vulnerability scan
-- **Quarterly**: Code security review
-- **Annually**: Full penetration testing
-
-### External Audits
-
-- **SOC2 Type II**: Compliance Autopilot uses itself for compliance
-- **Third-Party Security Firms**: Annual external audit
+- **Continuous**: Dogfood self-validation via GitHub Actions
 
 ### Bug Bounty
 
@@ -252,8 +246,8 @@ We do not currently offer a bug bounty program, but we deeply appreciate securit
 
 ### Certifications
 
-- 🏆 **GitHub Verified Action** (pending marketplace approval)
-- 🏆 **SOC2 Type II** (self-certified via this action)
+- 🏆 **GitHub Marketplace** (pending listing)
+- 🏆 **Self-audited** using Compliance Autopilot (dogfood testing)
 
 ## 🛠️ Security Tools Used
 
@@ -272,15 +266,8 @@ We do not currently offer a bug bounty program, but we deeply appreciate securit
 
 ### Security Team
 
-- **Email**: security@compliance-autopilot.com
-- **PGP Key**: Available on request
+- **Issues**: [GitHub Issues](https://github.com/m0rphsec/compliance-autopilot/issues) (use private vulnerability reporting)
 - **Response Time**: 48 hours
-
-### General Support
-
-- **Email**: support@compliance-autopilot.com
-- **Discord**: [Join Community](https://discord.gg/compliance-autopilot)
-- **Issues**: [GitHub Issues](https://github.com/yourusername/compliance-autopilot/issues)
 
 ## 📜 Security Advisory History
 

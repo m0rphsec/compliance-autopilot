@@ -17,7 +17,7 @@ inputs:
     required: true
 
   license-key:
-    description: 'License key for premium features (get one at https://compliance-autopilot.com/pricing)'
+    description: 'License key for paid features (see pricing in README)'
     required: false
     default: ''
 

@@ -3,11 +3,9 @@
 **Automate SOC2, GDPR, and ISO27001 compliance evidence collection. Pass audits without the pain.**
 
 [![GitHub Marketplace](https://img.shields.io/badge/Marketplace-Compliance%20Autopilot-blue.svg?colorA=24292e&colorB=0366d6&style=flat&longCache=true&logo=github)](https://github.com/marketplace/actions/compliance-autopilot)
-[![CI](https://github.com/m0rphsec/compliance-autopilot/workflows/CI/badge.svg)](https://github.com/m0rphsec/compliance-autopilot/actions)
+[![CI](https://github.com/m0rphsec/compliance-autopilot/workflows/CI%20Tests/badge.svg)](https://github.com/m0rphsec/compliance-autopilot/actions)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Version](https://img.shields.io/github/v/release/m0rphsec/compliance-autopilot?label=version)](https://github.com/m0rphsec/compliance-autopilot/releases)
-
-![Demo](./assets/demo.gif)
 
 ## ⚡ Quick Start
 
@@ -55,8 +53,6 @@ jobs:
 ## 📊 What You Get
 
 Every PR gets an automated compliance report:
-
-![PR Comment Example](./assets/screenshots/pr-comment.png)
 
 - **Real-time compliance status** posted as PR comment
 - **PDF evidence package** ready for auditors
@@ -131,41 +127,40 @@ jobs:
 
 ### Free Tier
 - ✅ Public repositories
+- ✅ SOC2 framework
 - ✅ 100 scans/month
+- ✅ JSON reports
 - ✅ Community support
-- ✅ Basic compliance reports
 
 ### Starter - $149/month
 - ✅ 1 private repository
-- ✅ SOC2 framework
+- ✅ SOC2 + GDPR + ISO27001 (all frameworks)
 - ✅ Unlimited scans
-- ✅ Email support
 - ✅ PDF reports
+- ✅ Email support
 
 ### Professional - $299/month
 - ✅ 5 private repositories
-- ✅ SOC2 + GDPR + ISO27001
+- ✅ SOC2 + GDPR + ISO27001 (all frameworks)
+- ✅ Unlimited scans
 - ✅ Slack integration
-- ✅ Priority support
 - ✅ Custom controls
-- ✅ Advanced analytics
+- ✅ Priority support
 
 ### Enterprise - Custom
 - ✅ Unlimited repositories
-- ✅ All frameworks
+- ✅ SOC2 + GDPR + ISO27001 (all frameworks)
 - ✅ Custom control mappings
 - ✅ SLA + dedicated support
 - ✅ On-premise deployment
 - ✅ White-label reports
 
-[Start Free Trial →](https://github.com/m0rphsec/compliance-autopilot)
+[Get Started →](https://github.com/m0rphsec/compliance-autopilot)
 
 ## 🎯 Who This Is For
 
 - 🚀 **Series A+ startups** preparing for SOC2
 - 💼 **SaaS companies** serving enterprise clients
-- 🏥 **Healthcare companies** with HIPAA requirements
-- 🏦 **Fintech companies** with PCI-DSS needs
 - 📊 **Any company** spending $20K+ on annual compliance
 
 ## 📚 Documentation
@@ -184,6 +179,7 @@ jobs:
 |-------|-------------|----------|---------|
 | `github-token` | GitHub token for API access | No | `${{ github.token }}` |
 | `anthropic-api-key` | Anthropic API key for Claude analysis | Yes | - |
+| `license-key` | License key for paid features | No | - |
 | `frameworks` | Comma-separated frameworks (`soc2,gdpr,iso27001`) | No | `soc2` |
 | `report-format` | Report format (`pdf`, `json`, `both`) | No | `both` |
 | `fail-on-violations` | Fail workflow if violations found | No | `false` |
@@ -211,24 +207,6 @@ This action:
 
 [Security Policy →](./SECURITY.md)
 
-## 🏆 Testimonials
-
-> "Cut our SOC2 prep from 6 months to 2 months. Worth every penny of the $299/month."
-> — CTO, Series B SaaS Company
-
-> "Our auditors were impressed by the automated evidence trail. Passed first try."
-> — Security Lead, Fintech Startup
-
-> "Finally, compliance automation that actually works. Saved us 150+ hours in Q4."
-> — VP Engineering, Healthcare Tech
-
-## 📊 Stats
-
-- ⭐ 4.9/5 rating (127 reviews)
-- 📥 2,847 installs
-- 🚀 95% customer retention
-- ✅ 450+ successful certifications
-
 ## 🛠️ How It Works
 
 1. **Collect Evidence** - Scans GitHub repository for compliance signals
@@ -253,8 +231,6 @@ This action:
 
 ## 🤝 Support
 
-- 📧 Email: support@compliance-autopilot.com
-- 💬 Discord: [Join Community](https://discord.gg/compliance-autopilot)
 - 🐛 Issues: [GitHub Issues](https://github.com/m0rphsec/compliance-autopilot/issues)
 - 📖 Docs: [Documentation](./docs/)
 
@@ -312,8 +288,4 @@ MIT © [m0rphsec](https://github.com/m0rphsec)
 
 ---
 
-**Built with ❤️ using [Claude Sonnet 4.5](https://anthropic.com)**
-
-## 🌟 Star History
-
-[![Star History Chart](https://api.star-history.com/svg?repos=m0rphsec/compliance-autopilot&type=Date)](https://star-history.com/#m0rphsec/compliance-autopilot&Date)
+**Built with [Claude](https://anthropic.com) by [m0rphsec](https://github.com/m0rphsec)**

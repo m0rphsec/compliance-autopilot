@@ -3120,7 +3120,7 @@ class LicenseEnforcer {
         if (context.isPrivateRepo && !this.limits.privateRepos) {
             blockedFeatures.push('private-repos');
             warnings.push(`Private repository scanning requires a paid plan. ` +
-                `Upgrade at https://compliance-autopilot.com/pricing`);
+                `Upgrade at https://github.com/m0rphsec/compliance-autopilot#-pricing`);
         }
         // Check framework access
         const allowedFrameworks = adjustedFrameworks.filter((fw) => this.limits.frameworks.includes(fw));
@@ -3189,7 +3189,7 @@ class LicenseEnforcer {
             lines.push('║  ✓ Slack alerts for compliance violations                    ║');
         }
         lines.push('║                                                              ║');
-        lines.push('║  👉 https://compliance-autopilot.com/pricing                 ║');
+        lines.push('║  👉 https://github.com/m0rphsec/compliance-autopilot         ║');
         lines.push('╚══════════════════════════════════════════════════════════════╝');
         lines.push('');
         return lines.join('\n');

@@ -1,0 +1,14 @@
+# Test fixtures
+fixtures/
+
+# Results
+results/
+*.csv
+*.log
+
+# Memory snapshots
+*.heapsnapshot
+
+# Performance profiles
+isolate-*.log
+profile.txt

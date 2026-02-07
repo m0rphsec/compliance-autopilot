@@ -59,6 +59,19 @@ export default {
       return handleAdminSetLicense(request, env, corsHeaders);
     }
 
+    // Subscription flow endpoints
+    if (url.pathname === '/success' && request.method === 'GET') {
+      return handleSuccess(url, env, corsHeaders);
+    }
+
+    if (url.pathname === '/lookup' && request.method === 'GET') {
+      return handleLookup(url, env, corsHeaders);
+    }
+
+    if (url.pathname === '/portal' && request.method === 'GET') {
+      return handlePortal(url, env, corsHeaders);
+    }
+
     return new Response(JSON.stringify({ error: 'Not found' }), {
       status: 404,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -301,6 +314,11 @@ async function handleCheckoutCompleted(session, env) {
   // Also store by subscription ID for updates
   await env.LICENSES.put(`sub:${subscriptionId}`, licenseKey);
 
+  // Store email-to-key mapping for lookup
+  if (customerEmail) {
+    await env.LICENSES.put(`email:${customerEmail}`, licenseKey);
+  }
+
   console.log(`License created: ${licenseKey} (${tier}) for ${customerEmail}`);
 
   // TODO: Send email with license key to customer
@@ -519,4 +537,602 @@ async function handleAdminSetLicense(request, env, corsHeaders) {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }
+}
+
+/**
+ * Handle checkout success page
+ * GET /success?session_id=xxx
+ */
+async function handleSuccess(url, env, corsHeaders) {
+  const sessionId = url.searchParams.get('session_id');
+
+  const html = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Welcome to Compliance Autopilot</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .container {
+            background: white;
+            border-radius: 12px;
+            padding: 48px;
+            max-width: 600px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+        h1 {
+            color: #1a202c;
+            font-size: 32px;
+            margin-bottom: 16px;
+        }
+        .success-icon {
+            width: 64px;
+            height: 64px;
+            background: #10b981;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 24px;
+            color: white;
+            font-size: 36px;
+        }
+        p {
+            color: #4a5568;
+            line-height: 1.6;
+            margin-bottom: 16px;
+        }
+        .info-box {
+            background: #f7fafc;
+            border-left: 4px solid #667eea;
+            padding: 16px;
+            margin: 24px 0;
+            border-radius: 4px;
+        }
+        .info-box h2 {
+            color: #2d3748;
+            font-size: 18px;
+            margin-bottom: 12px;
+        }
+        .steps {
+            list-style: none;
+            counter-reset: step-counter;
+        }
+        .steps li {
+            counter-increment: step-counter;
+            position: relative;
+            padding-left: 40px;
+            margin-bottom: 16px;
+            color: #2d3748;
+        }
+        .steps li::before {
+            content: counter(step-counter);
+            position: absolute;
+            left: 0;
+            top: 0;
+            background: #667eea;
+            color: white;
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 14px;
+        }
+        code {
+            background: #edf2f7;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+            color: #d53f8c;
+            font-size: 14px;
+        }
+        .button {
+            display: inline-block;
+            background: #667eea;
+            color: white;
+            padding: 12px 24px;
+            border-radius: 6px;
+            text-decoration: none;
+            margin-top: 24px;
+            transition: background 0.2s;
+        }
+        .button:hover {
+            background: #5a67d8;
+        }
+        .email-notice {
+            background: #fff5e6;
+            border-left: 4px solid #f59e0b;
+            padding: 12px;
+            margin: 16px 0;
+            border-radius: 4px;
+            color: #92400e;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="success-icon">✓</div>
+        <h1>Thank you for subscribing!</h1>
+        <p>Welcome to Compliance Autopilot. Your subscription has been activated successfully.</p>
+
+        ${sessionId ? '<p class="email-notice"><strong>📧 Your license key has been emailed to you.</strong> If you don\'t see it, check your spam folder or use the lookup link below.</p>' : ''}
+
+        <div class="info-box">
+            <h2>Next Steps: Add Your License Key</h2>
+            <ol class="steps">
+                <li>Go to your GitHub repository</li>
+                <li>Click on <strong>Settings</strong></li>
+                <li>Navigate to <strong>Secrets and variables</strong> → <strong>Actions</strong></li>
+                <li>Click <strong>New repository secret</strong></li>
+                <li>Set name to: <code>LICENSE_KEY</code></li>
+                <li>Paste your license key as the value</li>
+                <li>Click <strong>Add secret</strong></li>
+            </ol>
+        </div>
+
+        <p>Once configured, Compliance Autopilot will automatically validate your license key and enable premium features for your repository.</p>
+
+        ${!sessionId ? '<p><strong>Lost your license key?</strong> Contact support with your email address to retrieve it.</p>' : ''}
+
+        <a href="https://github.com/YOUR_ORG/compliance-autopilot" class="button">View Documentation</a>
+    </div>
+</body>
+</html>
+  `;
+
+  return new Response(html, {
+    status: 200,
+    headers: { ...corsHeaders, 'Content-Type': 'text/html' },
+  });
+}
+
+/**
+ * Handle license key lookup by email
+ * GET /lookup?email=xxx&admin_token=xxx
+ */
+async function handleLookup(url, env, corsHeaders) {
+  const email = url.searchParams.get('email');
+  const adminToken = url.searchParams.get('admin_token');
+
+  // Require admin token for now
+  if (!adminToken || adminToken !== env.ADMIN_TOKEN) {
+    const html = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>License Lookup - Unauthorized</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .container {
+            background: white;
+            border-radius: 12px;
+            padding: 48px;
+            max-width: 500px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            text-align: center;
+        }
+        h1 {
+            color: #e53e3e;
+            margin-bottom: 16px;
+        }
+        p {
+            color: #4a5568;
+            line-height: 1.6;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔒 Unauthorized</h1>
+        <p>License lookup requires authentication. Please contact support for assistance.</p>
+    </div>
+</body>
+</html>
+    `;
+    return new Response(html, {
+      status: 401,
+      headers: { ...corsHeaders, 'Content-Type': 'text/html' },
+    });
+  }
+
+  if (!email) {
+    const html = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>License Lookup - Email Required</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .container {
+            background: white;
+            border-radius: 12px;
+            padding: 48px;
+            max-width: 500px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            text-align: center;
+        }
+        h1 {
+            color: #e53e3e;
+            margin-bottom: 16px;
+        }
+        p {
+            color: #4a5568;
+            line-height: 1.6;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>⚠️ Email Required</h1>
+        <p>Please provide an email address to lookup your license key.</p>
+    </div>
+</body>
+</html>
+    `;
+    return new Response(html, {
+      status: 400,
+      headers: { ...corsHeaders, 'Content-Type': 'text/html' },
+    });
+  }
+
+  try {
+    // Look up license by email
+    const licenseKey = await env.LICENSES.get(`email:${email}`);
+
+    if (!licenseKey) {
+      const html = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>License Not Found</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .container {
+            background: white;
+            border-radius: 12px;
+            padding: 48px;
+            max-width: 500px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            text-align: center;
+        }
+        h1 {
+            color: #e53e3e;
+            margin-bottom: 16px;
+        }
+        p {
+            color: #4a5568;
+            line-height: 1.6;
+            margin-bottom: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>❌ License Not Found</h1>
+        <p>No license found for: <strong>${email}</strong></p>
+        <p>Please verify your email address or contact support for assistance.</p>
+    </div>
+</body>
+</html>
+      `;
+      return new Response(html, {
+        status: 404,
+        headers: { ...corsHeaders, 'Content-Type': 'text/html' },
+      });
+    }
+
+    // Get full license details
+    const licenseData = await env.LICENSES.get(licenseKey, { type: 'json' });
+
+    // Mask the license key (show first 4 and last 4 chars)
+    const maskedKey = licenseKey.length > 8
+      ? `${licenseKey.substring(0, 4)}...${licenseKey.substring(licenseKey.length - 4)}`
+      : licenseKey;
+
+    const html = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>License Found</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .container {
+            background: white;
+            border-radius: 12px;
+            padding: 48px;
+            max-width: 500px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+        h1 {
+            color: #10b981;
+            margin-bottom: 24px;
+            text-align: center;
+        }
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 12px 0;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        .info-row:last-child {
+            border-bottom: none;
+        }
+        .label {
+            color: #718096;
+            font-weight: 600;
+        }
+        .value {
+            color: #2d3748;
+            font-weight: 500;
+        }
+        .key-value {
+            font-family: 'Courier New', monospace;
+            background: #edf2f7;
+            padding: 4px 8px;
+            border-radius: 4px;
+            color: #d53f8c;
+        }
+        .notice {
+            background: #fff5e6;
+            border-left: 4px solid #f59e0b;
+            padding: 16px;
+            margin-top: 24px;
+            border-radius: 4px;
+            color: #92400e;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>✓ License Found</h1>
+        <div class="info-row">
+            <span class="label">Email:</span>
+            <span class="value">${email}</span>
+        </div>
+        <div class="info-row">
+            <span class="label">License Key:</span>
+            <span class="value key-value">${maskedKey}</span>
+        </div>
+        <div class="info-row">
+            <span class="label">Tier:</span>
+            <span class="value">${licenseData?.tier || 'Unknown'}</span>
+        </div>
+        <div class="info-row">
+            <span class="label">Status:</span>
+            <span class="value">${licenseData?.status || 'Unknown'}</span>
+        </div>
+        <div class="notice">
+            <strong>Note:</strong> The full license key has been sent to your email address. Contact support if you need further assistance.
+        </div>
+    </div>
+</body>
+</html>
+    `;
+
+    return new Response(html, {
+      status: 200,
+      headers: { ...corsHeaders, 'Content-Type': 'text/html' },
+    });
+
+  } catch (error) {
+    console.error('Lookup error:', error);
+    const html = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lookup Error</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .container {
+            background: white;
+            border-radius: 12px;
+            padding: 48px;
+            max-width: 500px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            text-align: center;
+        }
+        h1 {
+            color: #e53e3e;
+            margin-bottom: 16px;
+        }
+        p {
+            color: #4a5568;
+            line-height: 1.6;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>⚠️ Service Error</h1>
+        <p>An error occurred while looking up your license. Please try again later or contact support.</p>
+    </div>
+</body>
+</html>
+    `;
+    return new Response(html, {
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'text/html' },
+    });
+  }
+}
+
+/**
+ * Handle customer portal redirect
+ * GET /portal
+ */
+async function handlePortal(url, env, corsHeaders) {
+  const html = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Subscription Management</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .container {
+            background: white;
+            border-radius: 12px;
+            padding: 48px;
+            max-width: 600px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            text-align: center;
+        }
+        h1 {
+            color: #1a202c;
+            font-size: 32px;
+            margin-bottom: 16px;
+        }
+        p {
+            color: #4a5568;
+            line-height: 1.6;
+            margin-bottom: 16px;
+        }
+        .info-box {
+            background: #f7fafc;
+            border-left: 4px solid #667eea;
+            padding: 20px;
+            margin: 24px 0;
+            border-radius: 4px;
+            text-align: left;
+        }
+        .info-box h2 {
+            color: #2d3748;
+            font-size: 18px;
+            margin-bottom: 12px;
+        }
+        ul {
+            list-style: none;
+            padding-left: 0;
+        }
+        ul li {
+            padding: 8px 0;
+            color: #2d3748;
+        }
+        ul li::before {
+            content: "✓ ";
+            color: #10b981;
+            font-weight: bold;
+            margin-right: 8px;
+        }
+        .button {
+            display: inline-block;
+            background: #667eea;
+            color: white;
+            padding: 12px 24px;
+            border-radius: 6px;
+            text-decoration: none;
+            margin-top: 24px;
+            transition: background 0.2s;
+        }
+        .button:hover {
+            background: #5a67d8;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>💳 Subscription Management</h1>
+        <p>Manage your Compliance Autopilot subscription through our support team.</p>
+
+        <div class="info-box">
+            <h2>What You Can Do:</h2>
+            <ul>
+                <li>Update payment method</li>
+                <li>Change subscription tier</li>
+                <li>View billing history</li>
+                <li>Cancel subscription</li>
+                <li>Retrieve license key</li>
+            </ul>
+        </div>
+
+        <p>To make changes to your subscription, please contact our support team with your account details.</p>
+
+        <a href="https://github.com/YOUR_ORG/compliance-autopilot/issues" class="button">Contact Support</a>
+    </div>
+</body>
+</html>
+  `;
+
+  return new Response(html, {
+    status: 200,
+    headers: { ...corsHeaders, 'Content-Type': 'text/html' },
+  });
 }

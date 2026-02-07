@@ -40,7 +40,7 @@ export class LicenseEnforcer {
       blockedFeatures.push('private-repos');
       warnings.push(
         `Private repository scanning requires a paid plan. ` +
-          `Upgrade at https://compliance-autopilot.com/pricing`
+          `Upgrade at https://github.com/m0rphsec/compliance-autopilot#-pricing`
       );
     }
 
@@ -129,7 +129,7 @@ export class LicenseEnforcer {
     }
 
     lines.push('║                                                              ║');
-    lines.push('║  👉 https://compliance-autopilot.com/pricing                 ║');
+    lines.push('║  👉 https://github.com/m0rphsec/compliance-autopilot         ║');
     lines.push('╚══════════════════════════════════════════════════════════════╝');
     lines.push('');
 

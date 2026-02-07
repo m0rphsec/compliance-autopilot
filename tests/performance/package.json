@@ -1,0 +1,14 @@
+{
+  "name": "performance-benchmarks",
+  "version": "1.0.0",
+  "description": "Performance benchmark suite for Compliance Autopilot",
+  "scripts": {
+    "bench": "./run-benchmarks.sh",
+    "bench:small": "npm test -- tests/performance/benchmark.test.ts -t 'Small repository'",
+    "bench:medium": "npm test -- tests/performance/benchmark.test.ts -t 'Medium repository'",
+    "bench:large": "npm test -- tests/performance/benchmark.test.ts -t 'Large repository'",
+    "bench:memory": "NODE_OPTIONS='--expose-gc' npm test -- tests/performance/benchmark.test.ts -t 'Memory'",
+    "bench:parallel": "npm test -- tests/performance/benchmark.test.ts -t 'Parallel processing'",
+    "report": "cat ../../docs/PERFORMANCE_BENCHMARK.md"
+  }
+}

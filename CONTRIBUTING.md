@@ -32,7 +32,7 @@ Thank you for your interest in contributing to Compliance Autopilot! This docume
 
 2. **Add upstream remote**
    ```bash
-   git remote add upstream https://github.com/yourusername/compliance-autopilot.git
+   git remote add upstream https://github.com/m0rphsec/compliance-autopilot.git
    ```
 
 3. **Install dependencies**
@@ -42,12 +42,9 @@ Thank you for your interest in contributing to Compliance Autopilot! This docume
 
 4. **Set up environment**
    ```bash
-   # Create .env file
-   cp .env.example .env
-
-   # Add your API keys
-   echo "ANTHROPIC_API_KEY=your-key-here" >> .env
-   echo "GITHUB_TOKEN=your-token-here" >> .env
+   # Set your API keys as environment variables for testing
+   export ANTHROPIC_API_KEY=your-key-here
+   export GITHUB_TOKEN=your-token-here
    ```
 
 5. **Verify setup**
@@ -444,9 +441,7 @@ We follow the [Contributor Covenant](https://www.contributor-covenant.org/):
 
 ### Getting Help
 
-- 📧 Email: support@compliance-autopilot.com
-- 💬 Discord: [Join Community](https://discord.gg/compliance-autopilot)
-- 🐛 Issues: [GitHub Issues](https://github.com/yourusername/compliance-autopilot/issues)
+- 🐛 Issues: [GitHub Issues](https://github.com/m0rphsec/compliance-autopilot/issues)
 
 ## 📜 License
 
