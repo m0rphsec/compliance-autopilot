@@ -3,7 +3,7 @@
  * Smart prompting, rate limiting, retry logic, caching, and cost optimization
  */
 
-import Anthropic from '@anthropic-ai/sdk';
+import { Anthropic } from '@anthropic-ai/sdk';
 import {
   AnalysisRequest,
   AnalysisResponse,

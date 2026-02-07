@@ -12,6 +12,7 @@ export type ComplianceFramework = 'soc2' | 'gdpr' | 'iso27001';
 export interface ActionInputs {
   githubToken: string;
   anthropicApiKey: string;
+  licenseKey?: string;
   frameworks: ComplianceFramework[];
   reportFormat: 'pdf' | 'json' | 'both';
   failOnViolations: boolean;

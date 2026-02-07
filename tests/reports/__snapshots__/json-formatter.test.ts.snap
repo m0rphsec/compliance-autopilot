@@ -1,0 +1,53 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`JSONFormatter snapshot testing should match JSON structure snapshot 1`] = `
+{
+  "compliance": {
+    "grade": "Good",
+    "overallScore": 85.5,
+    "status": "FAIL",
+  },
+  "controls": [
+    {
+      "evidence": "All PRs have ≥1 approval",
+      "id": "CC1.1",
+      "name": "Code Review Process",
+      "severity": "high",
+      "status": "PASS",
+    },
+    {
+      "evidence": "Manual deployments detected",
+      "id": "CC6.1",
+      "name": "Deployment Controls",
+      "severity": "critical",
+      "status": "FAIL",
+      "violations": [
+        {
+          "code": "git push production main",
+          "file": "deploy.sh",
+          "line": 42,
+          "recommendation": "Use GitHub Actions for deployments",
+        },
+      ],
+    },
+  ],
+  "framework": "SOC2",
+  "metadata": {
+    "generatedAt": "2026-01-01T00:00:00.000Z",
+    "generator": "Compliance Autopilot",
+    "version": "1.0.0",
+  },
+  "repository": {
+    "name": "test-repo",
+    "owner": "test-org",
+  },
+  "summary": {
+    "failed": 7,
+    "notApplicable": 2,
+    "passRate": 85.94,
+    "passed": 55,
+    "total": 64,
+  },
+  "timestamp": "2024-01-15T10:30:00.000Z",
+}
+`;

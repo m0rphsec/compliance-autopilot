@@ -1,0 +1,9 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`PDFGenerator snapshot testing should match PDF structure snapshot 1`] = `
+{
+  "author": "Compliance Autopilot",
+  "pageCount": 5,
+  "title": "SOC2 Compliance Report - test-repo",
+}
+`;

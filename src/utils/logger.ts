@@ -12,7 +12,7 @@ export enum LogLevel {
   DEBUG = 'debug',
   INFO = 'info',
   WARN = 'warn',
-  ERROR = 'error'
+  ERROR = 'error',
 }
 
 /**
@@ -56,7 +56,7 @@ export class Logger {
     this.config = {
       level: config.level ?? LogLevel.INFO,
       includeTimestamp: config.includeTimestamp ?? false,
-      defaultMetadata: config.defaultMetadata ?? {}
+      defaultMetadata: config.defaultMetadata ?? {},
     };
   }
 
@@ -128,14 +128,16 @@ export class Logger {
    */
   error(message: string, error?: Error, metadata?: LogMetadata): void {
     if (this.shouldLog(LogLevel.ERROR)) {
-      const errorMetadata = error ? {
-        ...metadata,
-        error: {
-          name: error.name,
-          message: error.message,
-          stack: error.stack
-        }
-      } : metadata;
+      const errorMetadata = error
+        ? {
+            ...metadata,
+            error: {
+              name: error.name,
+              message: error.message,
+              stack: error.stack,
+            },
+          }
+        : metadata;
 
       const formatted = this.formatMessage(message, errorMetadata);
       core.error(formatted);
@@ -151,8 +153,8 @@ export class Logger {
       ...this.config,
       defaultMetadata: {
         ...this.config.defaultMetadata,
-        ...metadata
-      }
+        ...metadata,
+      },
     });
   }
 
@@ -182,7 +184,7 @@ export class Logger {
       ...metadata,
       operation,
       durationMs,
-      durationSeconds: (durationMs / 1000).toFixed(2)
+      durationSeconds: (durationMs / 1000).toFixed(2),
     });
   }
 
@@ -193,11 +195,7 @@ export class Logger {
    * @param metadata - Optional metadata
    * @returns Function result
    */
-  async measure<T>(
-    operation: string,
-    fn: () => Promise<T>,
-    metadata?: LogMetadata
-  ): Promise<T> {
+  async measure<T>(operation: string, fn: () => Promise<T>, metadata?: LogMetadata): Promise<T> {
     const startTime = Date.now();
     this.debug(`Starting operation: ${operation}`, { ...metadata, operation });
 
@@ -222,7 +220,7 @@ export class Logger {
  * Default logger instance
  */
 export const logger = new Logger({
-  level: (process.env.LOG_LEVEL as LogLevel) ?? LogLevel.INFO
+  level: (process.env.LOG_LEVEL as LogLevel) ?? LogLevel.INFO,
 });
 
 /**

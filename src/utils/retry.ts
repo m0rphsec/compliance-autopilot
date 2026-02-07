@@ -43,10 +43,7 @@ function sleep(ms: number): Promise<void> {
 /**
  * Calculate delay with exponential backoff
  */
-function calculateDelay(
-  attempt: number,
-  options: Required<RetryOptions>
-): number {
+function calculateDelay(attempt: number, options: Required<RetryOptions>): number {
   const exponentialDelay =
     options.initialDelayMs * Math.pow(options.backoffMultiplier, attempt - 1);
   let delay = Math.min(exponentialDelay, options.maxDelayMs);
@@ -64,10 +61,7 @@ function calculateDelay(
 /**
  * Retry a function with exponential backoff
  */
-export async function retry<T>(
-  fn: () => Promise<T>,
-  options: RetryOptions = {}
-): Promise<T> {
+export async function retry<T>(fn: () => Promise<T>, options: RetryOptions = {}): Promise<T> {
   const opts = { ...DEFAULT_OPTIONS, ...options };
   let lastError: Error;
 
@@ -78,10 +72,7 @@ export async function retry<T>(
       lastError = error as Error;
 
       if (attempt >= opts.maxAttempts) {
-        logger.error(
-          `Max retry attempts (${opts.maxAttempts}) exceeded`,
-          lastError
-        );
+        logger.error(`Max retry attempts (${opts.maxAttempts}) exceeded`, lastError);
         throw lastError;
       }
 
@@ -95,15 +86,12 @@ export async function retry<T>(
       const backoffDelay = calculateDelay(attempt, opts);
       const delay = Math.max(errorDelay, backoffDelay);
 
-      logger.warn(
-        `Attempt ${attempt}/${opts.maxAttempts} failed, retrying in ${delay}ms`,
-        {
-          error: lastError.message,
-          attempt,
-          maxAttempts: opts.maxAttempts,
-          delayMs: delay,
-        }
-      );
+      logger.warn(`Attempt ${attempt}/${opts.maxAttempts} failed, retrying in ${delay}ms`, {
+        error: lastError.message,
+        attempt,
+        maxAttempts: opts.maxAttempts,
+        delayMs: delay,
+      });
 
       await sleep(delay);
     }

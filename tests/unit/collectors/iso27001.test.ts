@@ -3,31 +3,73 @@
  * Test coverage: 95%+
  */
 
-import { ISO27001Collector } from '../../../src/collectors/iso27001';
-import { CollectorConfig, ControlStatus } from '../../../src/types/evidence';
+import { ISO27001Collector, ISO27001CollectorConfig } from '../../../src/collectors/iso27001';
+import {
+  ComplianceFramework,
+  ControlResult,
+} from '../../../src/types/evidence';
 import { Octokit } from '@octokit/rest';
 
 // Mock Octokit
 jest.mock('@octokit/rest');
 
+// Mock the logger to avoid @actions/core dependency in tests
+jest.mock('../../../src/utils/logger', () => ({
+  createLogger: () => ({
+    info: jest.fn(),
+    error: jest.fn(),
+    debug: jest.fn(),
+    warn: jest.fn(),
+  }),
+}));
+
+/**
+ * Helper to build a mock Octokit instance with default stubs for all
+ * GitHub API endpoints used by the collector. Individual tests can
+ * override specific methods before constructing the collector.
+ */
+function buildMockOctokit() {
+  return {
+    repos: {
+      listCollaborators: jest.fn().mockResolvedValue({ data: [] }),
+      getBranchProtection: jest.fn().mockRejectedValue({ status: 404 }),
+      getContent: jest.fn().mockRejectedValue({ status: 404 }),
+      get: jest.fn().mockResolvedValue({
+        data: { security_and_analysis: null },
+      }),
+    },
+    pulls: {
+      list: jest.fn().mockResolvedValue({ data: [] }),
+      listReviews: jest.fn().mockResolvedValue({ data: [] }),
+    },
+    issues: {
+      listForRepo: jest.fn().mockResolvedValue({ data: [] }),
+    },
+    actions: {
+      listRepoWorkflows: jest.fn().mockResolvedValue({
+        data: { total_count: 0, workflows: [] },
+      }),
+    },
+    rest: {
+      dependabot: {
+        listAlertsForRepo: jest.fn().mockRejectedValue({ status: 403 }),
+      },
+    },
+  };
+}
+
 describe('ISO27001Collector', () => {
-  let collector: ISO27001Collector;
-  let mockOctokit: jest.Mocked<Octokit>;
-  let config: CollectorConfig;
+  let mockOctokitInstance: ReturnType<typeof buildMockOctokit>;
+  const baseConfig: ISO27001CollectorConfig = {
+    githubToken: 'test-token',
+    owner: 'test-owner',
+    repo: 'test-repo',
+  };
 
   beforeEach(() => {
-    collector = new ISO27001Collector();
-    mockOctokit = new Octokit() as jest.Mocked<Octokit>;
-    config = {
-      context: {
-        owner: 'test-owner',
-        repo: 'test-repo',
-        token: 'test-token',
-        branch: 'main',
-      },
-      parallel: true,
-      timeout: 30000,
-    };
+    mockOctokitInstance = buildMockOctokit();
+    // Make the Octokit constructor return our mock instance
+    (Octokit as unknown as jest.Mock).mockImplementation(() => mockOctokitInstance);
   });
 
   afterEach(() => {
@@ -35,149 +77,175 @@ describe('ISO27001Collector', () => {
   });
 
   describe('collect', () => {
-    it('should collect evidence for all enabled controls', async () => {
-      // Mock successful API responses
-      mockOctokit.repos = {
-        getContent: jest.fn().mockResolvedValue({
-          data: { content: Buffer.from('test').toString('base64'), size: 100 },
-        }),
-        listCollaborators: jest.fn().mockResolvedValue({ data: [] }),
-        listBranches: jest.fn().mockResolvedValue({ data: [] }),
-        get: jest.fn().mockResolvedValue({ data: { visibility: 'private', private: true } }),
-      } as any;
+    it('should collect evidence for all 9 ISO27001 controls', async () => {
+      const collector = new ISO27001Collector(baseConfig);
+      const report = await collector.collect();
 
-      mockOctokit.issues = {
-        listForRepo: jest.fn().mockResolvedValue({ data: [] }),
-      } as any;
-
-      mockOctokit.actions = {
-        listRepoWorkflows: jest.fn().mockResolvedValue({ data: { workflows: [] } }),
-      } as any;
-
-      const report = await collector.collect(config);
-
-      expect(report.framework).toBe('iso27001');
-      expect(report.repository.owner).toBe('test-owner');
-      expect(report.repository.name).toBe('test-repo');
-      expect(report.evidence.length).toBeGreaterThan(0);
-      expect(report.summary.total).toBe(report.evidence.length);
-      expect(report.metadata?.scanDuration).toBeGreaterThan(0);
+      expect(report.framework).toBe(ComplianceFramework.ISO27001);
+      expect(report.repository).toBe('test-owner/test-repo');
+      expect(report.evaluations).toHaveLength(9);
+      expect(report.summary.totalControls).toBe(9);
+      expect(report.period).toBeDefined();
+      expect(report.generatedAt).toBeDefined();
+      expect(report.id).toMatch(/^iso27001-/);
     });
 
-    it('should filter controls based on enabledControls', async () => {
-      config.enabledControls = ['A.5.1', 'A.8.2'];
+    it('should evaluate access control with low admin ratio as PASS', async () => {
+      // 1 admin out of 10 collaborators = 10% < 25% threshold
+      mockOctokitInstance.repos.listCollaborators.mockResolvedValue({
+        data: [
+          { permissions: { admin: true }, role_name: 'admin' },
+          ...Array(9).fill({ permissions: { admin: false }, role_name: 'write' }),
+        ],
+      });
 
-      mockOctokit.repos = {
-        getContent: jest.fn().mockResolvedValue({
-          data: { content: Buffer.from('test').toString('base64'), size: 100 },
-        }),
-        listCollaborators: jest.fn().mockResolvedValue({ data: [] }),
-      } as any;
+      const collector = new ISO27001Collector(baseConfig);
+      const report = await collector.collect();
 
-      mockOctokit.issues = {
-        listForRepo: jest.fn().mockResolvedValue({ data: [] }),
-      } as any;
-
-      const report = await collector.collect(config);
-
-      expect(report.evidence.length).toBeLessThanOrEqual(2);
-      const controlIds = report.evidence.map((e) => e.controlId);
-      expect(controlIds).toContain('A.5.1');
+      const a923 = report.evaluations.find((e) => e.controlId === 'A.9.2.3');
+      expect(a923).toBeDefined();
+      expect(a923!.result).toBe(ControlResult.PASS);
+      expect(a923!.evidence.length).toBeGreaterThan(0);
+      expect(a923!.notes).toContain('10%');
     });
 
-    it('should calculate summary correctly', async () => {
-      config.enabledControls = ['A.5.1'];
+    it('should calculate summary statistics correctly', async () => {
+      // Set up branch protection so some controls pass
+      mockOctokitInstance.repos.getBranchProtection.mockResolvedValue({
+        data: {
+          enforce_admins: { enabled: true },
+          required_pull_request_reviews: {
+            required_approving_review_count: 2,
+            require_code_owner_reviews: true,
+            dismiss_stale_reviews: true,
+          },
+        },
+      });
 
-      mockOctokit.repos = {
-        getContent: jest.fn().mockResolvedValue({
-          data: { content: Buffer.from('test').toString('base64'), size: 100 },
-        }),
-      } as any;
+      const collector = new ISO27001Collector(baseConfig);
+      const report = await collector.collect();
 
-      mockOctokit.issues = {
-        listForRepo: jest.fn().mockResolvedValue({ data: [] }),
-      } as any;
+      const { summary } = report;
+      expect(summary.totalControls).toBe(9);
+      // All summary counts should add up to total
+      const totalFromCounts =
+        summary.passedControls +
+        summary.failedControls +
+        summary.partialControls +
+        summary.notApplicableControls +
+        summary.errorControls;
+      expect(totalFromCounts).toBe(summary.totalControls);
 
-      const report = await collector.collect(config);
-
-      expect(report.summary.total).toBe(report.evidence.length);
-      expect(report.summary.passed + report.summary.failed + report.summary.notApplicable + report.summary.manualReview).toBe(report.summary.total);
+      // Compliance percentage should be (passed / total) * 100
+      const expectedPercentage = Math.round(
+        (summary.passedControls / summary.totalControls) * 100
+      );
+      expect(summary.compliancePercentage).toBe(expectedPercentage);
     });
   });
 
   describe('Error Handling', () => {
-    it('should handle API errors gracefully', async () => {
-      mockOctokit.repos = {
-        getContent: jest.fn().mockRejectedValue(new Error('API Error')),
-      } as any;
+    it('should handle API errors gracefully and produce ERROR results', async () => {
+      // Make all API calls fail with unexpected errors (not 403/404)
+      const apiError = new Error('API Error');
+      mockOctokitInstance.repos.listCollaborators.mockRejectedValue(apiError);
+      mockOctokitInstance.repos.getBranchProtection.mockRejectedValue(apiError);
+      mockOctokitInstance.repos.getContent.mockRejectedValue(apiError);
+      mockOctokitInstance.repos.get.mockRejectedValue(apiError);
+      mockOctokitInstance.pulls.list.mockRejectedValue(apiError);
+      mockOctokitInstance.issues.listForRepo.mockRejectedValue(apiError);
+      mockOctokitInstance.actions.listRepoWorkflows.mockRejectedValue(apiError);
+      mockOctokitInstance.rest.dependabot.listAlertsForRepo.mockRejectedValue(apiError);
 
-      mockOctokit.issues = {
-        listForRepo: jest.fn().mockRejectedValue(new Error('API Error')),
-      } as any;
+      const collector = new ISO27001Collector(baseConfig);
+      const report = await collector.collect();
 
-      config.enabledControls = ['A.5.1'];
-      const report = await collector.collect(config);
-
-      expect(report.evidence.length).toBeGreaterThan(0);
-      const evidence = report.evidence.find((e) => e.controlId === 'A.5.1');
-      expect(evidence?.status).toBe('MANUAL_REVIEW');
+      // Collection should still complete (no thrown error)
+      expect(report.evaluations).toHaveLength(9);
+      // Controls that hit unexpected errors should get ERROR result
+      const errorEvals = report.evaluations.filter(
+        (e) => e.result === ControlResult.ERROR
+      );
+      expect(errorEvals.length).toBeGreaterThan(0);
+      // Error evaluations should have descriptive notes
+      for (const evaluation of errorEvals) {
+        expect(evaluation.notes).toContain('Error evaluating control');
+      }
     });
 
     it('should continue collection after individual control failure', async () => {
-      mockOctokit.repos = {
-        getContent: jest
-          .fn()
-          .mockRejectedValueOnce(new Error('Error'))
-          .mockResolvedValue({
-            data: { content: Buffer.from('test').toString('base64'), size: 4 },
-          }),
-        listCollaborators: jest.fn().mockResolvedValue({ data: [] }),
-      } as any;
+      // Only the collaborators endpoint fails; everything else works
+      mockOctokitInstance.repos.listCollaborators.mockRejectedValue(
+        new Error('Network timeout')
+      );
 
-      mockOctokit.issues = {
-        listForRepo: jest.fn().mockResolvedValue({ data: [] }),
-      } as any;
+      const collector = new ISO27001Collector(baseConfig);
+      const report = await collector.collect();
 
-      config.enabledControls = ['A.5.1', 'A.8.2'];
-      const report = await collector.collect(config);
+      // All 9 controls should still be evaluated
+      expect(report.evaluations).toHaveLength(9);
 
-      expect(report.evidence.length).toBeGreaterThan(0);
+      // A.9.2.3 (the one using listCollaborators) should be ERROR
+      const a923 = report.evaluations.find((e) => e.controlId === 'A.9.2.3');
+      expect(a923).toBeDefined();
+      expect(a923!.result).toBe(ControlResult.ERROR);
+
+      // Other controls should not be ERROR (they should still evaluate)
+      const nonErrorCount = report.evaluations.filter(
+        (e) => e.result !== ControlResult.ERROR
+      ).length;
+      expect(nonErrorCount).toBeGreaterThan(0);
     });
   });
 
   describe('Performance', () => {
     it('should complete collection within timeout', async () => {
-      mockOctokit.repos = {
-        getContent: jest.fn().mockResolvedValue({
-          data: { content: Buffer.from('test').toString('base64'), size: 4 },
-        }),
-        listCollaborators: jest.fn().mockResolvedValue({ data: [] }),
-        listBranches: jest.fn().mockResolvedValue({ data: [] }),
-        get: jest.fn().mockResolvedValue({ data: { visibility: 'private', private: true } }),
-      } as any;
-
-      mockOctokit.issues = {
-        listForRepo: jest.fn().mockResolvedValue({ data: [] }),
-      } as any;
-
-      mockOctokit.actions = {
-        listRepoWorkflows: jest.fn().mockResolvedValue({ data: { workflows: [] } }),
-      } as any;
-
-      mockOctokit.orgs = {
-        get: jest.fn().mockRejectedValue(new Error('Not found')),
-      } as any;
-
-      mockOctokit.pulls = {
-        list: jest.fn().mockResolvedValue({ data: [] }),
-      } as any;
+      // Set up enough mocks so all controls can evaluate without hanging
+      mockOctokitInstance.repos.listCollaborators.mockResolvedValue({
+        data: [{ permissions: { admin: false }, role_name: 'write' }],
+      });
+      mockOctokitInstance.repos.getBranchProtection.mockResolvedValue({
+        data: {
+          enforce_admins: { enabled: true },
+          required_pull_request_reviews: {
+            required_approving_review_count: 1,
+            require_code_owner_reviews: false,
+            dismiss_stale_reviews: false,
+          },
+        },
+      });
+      mockOctokitInstance.repos.getContent.mockResolvedValue({
+        data: { content: Buffer.from('test').toString('base64'), size: 4 },
+      });
+      mockOctokitInstance.repos.get.mockResolvedValue({
+        data: {
+          security_and_analysis: { secret_scanning: { status: 'enabled' } },
+        },
+      });
+      mockOctokitInstance.pulls.list.mockResolvedValue({
+        data: [{ number: 1, merged_at: '2025-01-01T00:00:00Z' }],
+      });
+      mockOctokitInstance.pulls.listReviews.mockResolvedValue({
+        data: [{ state: 'APPROVED' }],
+      });
+      mockOctokitInstance.issues.listForRepo.mockResolvedValue({ data: [] });
+      mockOctokitInstance.actions.listRepoWorkflows.mockResolvedValue({
+        data: { total_count: 1, workflows: [{ name: 'CI Tests' }] },
+      });
+      mockOctokitInstance.rest.dependabot.listAlertsForRepo.mockResolvedValue({
+        data: [],
+      });
 
       const startTime = Date.now();
-      const report = await collector.collect(config);
+      const collector = new ISO27001Collector(baseConfig);
+      const report = await collector.collect();
       const duration = Date.now() - startTime;
 
-      expect(duration).toBeLessThan(config.timeout || 30000);
-      expect(report.metadata?.scanDuration).toBeLessThan(config.timeout || 30000);
-    }, 35000);
+      // Should complete well under the default 30s timeout
+      expect(duration).toBeLessThan(5000);
+      expect(report.evaluations).toHaveLength(9);
+      // With all mocks returning good data, most controls should pass
+      expect(report.summary.passedControls).toBeGreaterThan(0);
+    }, 10000);
   });
 });

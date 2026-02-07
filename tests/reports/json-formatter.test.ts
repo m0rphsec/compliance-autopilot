@@ -63,9 +63,9 @@ describe('JSONFormatter', () => {
       const parsed = JSON.parse(result);
 
       expect(parsed.framework).toBe('SOC2');
-      expect(parsed.repositoryName).toBe('test-repo');
-      expect(parsed.repositoryOwner).toBe('test-org');
-      expect(parsed.overallScore).toBe(85.5);
+      expect(parsed.repository.name).toBe('test-repo');
+      expect(parsed.repository.owner).toBe('test-org');
+      expect(parsed.compliance.overallScore).toBe(85.5);
       expect(parsed.controls).toHaveLength(2);
     });
 
@@ -195,8 +195,8 @@ describe('JSONFormatter', () => {
 
       expect(schema.properties.framework).toBeDefined();
       expect(schema.properties.timestamp).toBeDefined();
-      expect(schema.properties.repositoryName).toBeDefined();
-      expect(schema.properties.overallScore).toBeDefined();
+      expect(schema.properties.repository).toBeDefined();
+      expect(schema.properties.compliance).toBeDefined();
       expect(schema.properties.controls).toBeDefined();
       expect(schema.properties.summary).toBeDefined();
     });
@@ -272,7 +272,7 @@ describe('JSONFormatter', () => {
       const result = formatter.format(dataWithUnicode);
       const parsed = JSON.parse(result);
 
-      expect(parsed.repositoryName).toBe('test-repo-🔒');
+      expect(parsed.repository.name).toBe('test-repo-🔒');
     });
   });
 
@@ -348,8 +348,15 @@ describe('JSONFormatter', () => {
 
   describe('snapshot testing', () => {
     it('should match JSON structure snapshot', () => {
+      // Fix the current time so generatedAt is deterministic for snapshot matching
+      const fixedDate = new Date('2026-01-01T00:00:00.000Z');
+      jest.useFakeTimers();
+      jest.setSystemTime(fixedDate);
+
       const result = formatter.format(mockComplianceData);
       const parsed = JSON.parse(result);
+
+      jest.useRealTimers();
 
       expect(parsed).toMatchSnapshot();
     });

@@ -13,11 +13,11 @@ export class PIIDetector {
     // SSN: XXX-XX-XXXX or XXXXXXXXX (excluding all zeros)
     ssn: /\b(?!000|666|9\d{2})\d{3}-?(?!00)\d{2}-?(?!0000)\d{4}\b/g,
 
-    // Credit Cards: Visa, MasterCard, Amex, Discover
+    // Credit Cards: Visa (16 digits, 4xxx), MasterCard (16 digits, 51-55),
+    // Amex (15 digits, 34/37), Discover (16 digits, 6011/65)
+    // Matches both with and without hyphens/spaces
     creditCard:
-      /\b(?:4[0-9]{12}(?:[0-9]{3})?|5[1-5][0-9]{14}|3[47][0-9]{13}|6(?:011|5[0-9]{2})[0-9]{12})\b/g,
-    creditCardWithHyphens:
-      /\b(?:4[0-9]{3}-?[0-9]{4}-?[0-9]{4}-?[0-9]{4}|5[1-5][0-9]{2}-?[0-9]{4}-?[0-9]{4}-?[0-9]{4}|3[47][0-9]{2}-?[0-9]{6}-?[0-9]{5})\b/g,
+      /\b(?:4[0-9]{3}[-\s]?[0-9]{4}[-\s]?[0-9]{4}[-\s]?[0-9]{4}|5[1-5][0-9]{2}[-\s]?[0-9]{4}[-\s]?[0-9]{4}[-\s]?[0-9]{4}|3[47][0-9]{2}[-\s]?[0-9]{6}[-\s]?[0-9]{5}|6(?:011|5[0-9]{2})[-\s]?[0-9]{4}[-\s]?[0-9]{4}[-\s]?[0-9]{4})\b/g,
 
     // Phone: US formats (555-123-4567, (555) 123-4567, +1-555-123-4567)
     phone: /\b(?:\+?1[-.\s]?)?\(?([0-9]{3})\)?[-.\s]?([0-9]{3})[-.\s]?([0-9]{4})\b/g,
@@ -98,30 +98,20 @@ export class PIIDetector {
     const lines = code.split('\n');
 
     lines.forEach((line, lineIndex) => {
-      // Check both with and without hyphens
-      const patterns = [
-        this.patterns.creditCard.source,
-        this.patterns.creditCardWithHyphens.source,
-      ];
+      const regex = new RegExp(this.patterns.creditCard.source, 'g');
+      let match: RegExpExecArray | null;
 
-      patterns.forEach((patternSource) => {
-        const regex = new RegExp(patternSource, 'g');
-        let match: RegExpExecArray | null;
-
-        while ((match = regex.exec(line)) !== null) {
-          // Luhn algorithm validation
-          const cardNumber = match[0].replace(/[-\s]/g, '');
-          if (this.validateLuhn(cardNumber)) {
-            matches.push({
-              type: 'credit_card',
-              value: match[0],
-              line: lineIndex,
-              column: match.index,
-              context: this.extractContext(line, match.index, match[0].length),
-            });
-          }
-        }
-      });
+      while ((match = regex.exec(line)) !== null) {
+        // For PII detection, we want to flag anything that looks like a card
+        // Not just valid cards (Luhn check removed for better detection coverage)
+        matches.push({
+          type: 'credit_card',
+          value: match[0],
+          line: lineIndex,
+          column: match.index,
+          context: this.extractContext(line, match.index, match[0].length),
+        });
+      }
     });
 
     return matches;
@@ -214,30 +204,5 @@ export class PIIDetector {
     if (end < line.length) context = context + '...';
 
     return context;
-  }
-
-  /**
-   * Validate credit card using Luhn algorithm
-   */
-  private validateLuhn(cardNumber: string): boolean {
-    let sum = 0;
-    let isEven = false;
-
-    // Loop through values starting from the rightmost
-    for (let i = cardNumber.length - 1; i >= 0; i--) {
-      let digit = parseInt(cardNumber.charAt(i), 10);
-
-      if (isEven) {
-        digit *= 2;
-        if (digit > 9) {
-          digit -= 9;
-        }
-      }
-
-      sum += digit;
-      isEven = !isEven;
-    }
-
-    return sum % 10 === 0;
   }
 }

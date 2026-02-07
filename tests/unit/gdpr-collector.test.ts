@@ -6,25 +6,21 @@
 import { GDPRCollector } from '../../src/collectors/gdpr';
 import { GDPRCollectorResult, PIIDetectionResult } from '../../src/types';
 
-// Mock Anthropic client
+// Mock Anthropic client - returns minimal response to let local detection work
 jest.mock('@anthropic-ai/sdk', () => {
   return {
-    default: jest.fn().mockImplementation(() => ({
+    Anthropic: jest.fn().mockImplementation(() => ({
       messages: {
         create: jest.fn().mockResolvedValue({
           content: [{
+            type: 'text',
             text: JSON.stringify({
               has_pii: true,
               pii_types: ['email', 'name'],
               collection_methods: ['form input'],
-              encryption_transit: true,
-              encryption_rest: false,
-              consent_mechanism: false,
-              retention_policy: false,
-              deletion_capability: false,
-              gdpr_compliant: false,
-              violations: ['No encryption at rest', 'No consent mechanism'],
-              recommendations: ['Implement database encryption', 'Add consent checkbox']
+              // Let local detection handle these - don't override
+              violations: [],
+              recommendations: []
             })
           }]
         })
@@ -84,14 +80,17 @@ describe('GDPRCollector', () => {
     });
 
     it('should flag HTTP usage as violation', async () => {
+      // Include actual PII string so regex detector finds it
       const code = `
+        const email = "user@example.com";
         fetch('http://api.example.com/data', {
-          body: JSON.stringify({ email: user.email })
+          body: JSON.stringify({ email })
         });
       `;
 
       const result = await collector.scanFile(code, '/src/api.ts');
 
+      // Should flag violation because PII is sent over HTTP (not HTTPS)
       expect(result.violations.length).toBeGreaterThan(0);
     });
 

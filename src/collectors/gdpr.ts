@@ -3,7 +3,7 @@
  * Combines regex PII detection with Claude contextual analysis
  */
 
-import Anthropic from '@anthropic-ai/sdk';
+import { Anthropic } from '@anthropic-ai/sdk';
 import { PIIDetector } from '../analyzers/pii-detector';
 import { GDPRCollectorResult, GDPRViolation, PIIDetectionResult, PIIMatch } from '../types';
 
@@ -223,7 +223,13 @@ Return JSON:
    * Detect HTTPS/TLS usage for transit encryption
    */
   private detectEncryptionTransit(code: string): boolean {
-    const patterns = [/https:\/\//i, /tls/i, /ssl/i, /process\.env\.NODE_TLS_REJECT_UNAUTHORIZED/i];
+    const patterns = [
+      /https:\/\//i, // HTTPS URLs
+      /https\./i, // Node.js https module (https.createServer, https.get)
+      /tls\./i, // TLS module usage
+      /ssl/i, // SSL references
+      /process\.env\.NODE_TLS_REJECT_UNAUTHORIZED/i,
+    ];
 
     return patterns.some((pattern) => pattern.test(code));
   }

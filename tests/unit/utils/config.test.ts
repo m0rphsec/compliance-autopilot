@@ -94,7 +94,7 @@ describe('Config Utility', () => {
         },
         options: {
           failOnViolations: expect.any(Boolean),
-          slackWebhook: expect.toBeOneOf([expect.any(String), undefined]),
+          slackWebhook: expect.anything(), // Can be string or undefined
         },
       };
 

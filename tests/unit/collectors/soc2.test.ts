@@ -2,11 +2,10 @@
  * Unit tests for SOC2 Collector
  */
 
-import { SOC2Collector } from '../../../src/collectors/soc2';
+import { SOC2Collector, SOC2CollectorConfig } from '../../../src/collectors/soc2';
 import {
-  ComplianceStatus,
-  Framework,
-  CollectorConfig,
+  ComplianceFramework,
+  ControlResult,
 } from '../../../src/types/evidence';
 import { Octokit } from '@octokit/rest';
 
@@ -15,36 +14,30 @@ jest.mock('@octokit/rest');
 describe('SOC2Collector', () => {
   let collector: SOC2Collector;
   let mockOctokit: jest.Mocked<any>;
-  let config: CollectorConfig;
+  let config: SOC2CollectorConfig;
 
   beforeEach(() => {
     jest.clearAllMocks();
 
     mockOctokit = {
-      rest: {
-        repos: {
-          getBranchProtection: jest.fn(),
-          getContent: jest.fn(),
-          listCollaborators: jest.fn(),
-          listDeployments: jest.fn(),
-        },
-        pulls: {
-          list: jest.fn(),
-          listReviews: jest.fn(),
-        },
-        issues: {
-          listForRepo: jest.fn(),
-          listComments: jest.fn(),
-        },
-        actions: {
-          listRepoWorkflows: jest.fn(),
-        },
+      repos: {
+        getBranchProtection: jest.fn(),
+        listCollaborators: jest.fn(),
+        listDeployments: jest.fn(),
       },
-      request: jest.fn(),
+      pulls: {
+        list: jest.fn(),
+      },
+      issues: {
+        listForRepo: jest.fn(),
+      },
+      actions: {
+        listRepoWorkflows: jest.fn(),
+      },
     };
 
     (Octokit as jest.MockedClass<typeof Octokit>).mockImplementation(
-      () => mockOctokit
+      () => mockOctokit as unknown as Octokit
     );
 
     config = {
@@ -57,169 +50,162 @@ describe('SOC2Collector', () => {
     collector = new SOC2Collector(config);
   });
 
-  describe('collect', () => {
-    it('should collect SOC2 compliance evidence successfully', async () => {
-      mockOctokit.rest.repos.getBranchProtection.mockResolvedValue({
-        data: {
-          required_pull_request_reviews: {
-            required_approving_review_count: 1,
-          },
+  /**
+   * Helper to set up all mocks with sensible defaults for a full collect() run.
+   * Individual tests can override specific mocks after calling this.
+   */
+  function setupDefaultMocks() {
+    mockOctokit.repos.getBranchProtection.mockResolvedValue({
+      data: {
+        required_pull_request_reviews: {
+          required_approving_review_count: 1,
+          dismiss_stale_reviews: false,
         },
-      });
+      },
+    });
 
-      mockOctokit.rest.pulls.list.mockResolvedValue({
-        data: [
-          {
-            number: 1,
-            title: 'Test PR',
-            body: 'Test description',
-            merged_at: '2024-01-01T00:00:00Z',
-            created_at: '2024-01-01T00:00:00Z',
-            html_url: 'https://github.com/test/test/pull/1',
-          },
-        ],
-      });
-
-      mockOctokit.rest.pulls.listReviews.mockResolvedValue({
-        data: [{ state: 'APPROVED' }],
-      });
-
-      mockOctokit.rest.repos.getContent.mockResolvedValue({
-        data: {
-          content: Buffer.from('# Code of Conduct').toString('base64'),
+    mockOctokit.pulls.list.mockResolvedValue({
+      data: [
+        {
+          number: 1,
+          title: 'Test PR',
+          body: 'Test description',
+          merged_at: '2024-01-01T00:00:00Z',
+          created_at: '2024-01-01T00:00:00Z',
+          html_url: 'https://github.com/test/test/pull/1',
         },
-      });
+      ],
+    });
 
-      mockOctokit.rest.actions.listRepoWorkflows.mockResolvedValue({
-        data: {
-          workflows: [
-            {
-              id: 1,
-              name: 'Deploy',
-              state: 'active',
-              path: '.github/workflows/deploy.yml',
-              html_url: 'https://github.com/test/test/actions',
-              updated_at: '2024-01-01T00:00:00Z',
-            },
-          ],
-        },
-      });
-
-      mockOctokit.rest.repos.listDeployments.mockResolvedValue({
-        data: [
+    mockOctokit.actions.listRepoWorkflows.mockResolvedValue({
+      data: {
+        total_count: 1,
+        workflows: [
           {
             id: 1,
-            environment: 'production',
-            ref: 'main',
-            created_at: '2024-01-01T00:00:00Z',
-            url: 'https://api.github.com/repos/test/test/deployments/1',
-            creator: { login: 'test-user' },
+            name: 'Deploy',
+            state: 'active',
+            path: '.github/workflows/deploy.yml',
           },
         ],
-      });
+      },
+    });
 
-      mockOctokit.rest.repos.listCollaborators.mockResolvedValue({
-        data: [
-          { login: 'admin1', permissions: { admin: true, push: true, pull: true } },
-          { login: 'dev1', permissions: { admin: false, push: true, pull: true } },
-          { login: 'dev2', permissions: { admin: false, push: true, pull: true } },
-        ],
-      });
+    mockOctokit.repos.listDeployments.mockResolvedValue({
+      data: [
+        {
+          id: 1,
+          environment: 'production',
+          created_at: '2024-01-01T00:00:00Z',
+        },
+      ],
+    });
 
-      mockOctokit.rest.issues.listForRepo.mockResolvedValue({
-        data: [],
-      });
+    mockOctokit.repos.listCollaborators.mockResolvedValue({
+      data: [
+        { login: 'admin1', permissions: { admin: true, push: true, pull: true }, role_name: 'admin' },
+        { login: 'dev1', permissions: { admin: false, push: true, pull: true }, role_name: 'write' },
+        { login: 'dev2', permissions: { admin: false, push: true, pull: true }, role_name: 'write' },
+      ],
+    });
 
-      mockOctokit.request.mockResolvedValue({
-        data: [],
-      });
+    mockOctokit.issues.listForRepo.mockResolvedValue({
+      data: [],
+    });
+  }
+
+  describe('collect', () => {
+    it('should collect SOC2 compliance evidence successfully', async () => {
+      setupDefaultMocks();
 
       const report = await collector.collect();
 
       expect(report).toBeDefined();
-      expect(report.framework).toBe(Framework.SOC2);
-      expect(report.repository.owner).toBe('test-owner');
-      expect(report.repository.name).toBe('test-repo');
-      expect(report.controls).toHaveLength(20);
+      expect(report.framework).toBe(ComplianceFramework.SOC2);
+      expect(report.repository).toBe('test-owner/test-repo');
+      expect(report.evaluations).toHaveLength(4);
       expect(report.summary).toBeDefined();
-      expect(report.summary.total).toBe(20);
+      expect(report.summary.totalControls).toBe(4);
     });
 
     it('should handle API errors gracefully', async () => {
-      mockOctokit.rest.repos.getBranchProtection.mockRejectedValue(
+      // When all API calls fail, the collector catches errors per-control
+      // and returns ERROR results rather than throwing.
+      mockOctokit.repos.getBranchProtection.mockRejectedValue(
+        new Error('API Error')
+      );
+      mockOctokit.pulls.list.mockRejectedValue(
+        new Error('API Error')
+      );
+      mockOctokit.actions.listRepoWorkflows.mockRejectedValue(
+        new Error('API Error')
+      );
+      mockOctokit.repos.listDeployments.mockRejectedValue(
+        new Error('API Error')
+      );
+      mockOctokit.repos.listCollaborators.mockRejectedValue(
+        new Error('API Error')
+      );
+      mockOctokit.issues.listForRepo.mockRejectedValue(
         new Error('API Error')
       );
 
-      await expect(collector.collect()).rejects.toThrow();
+      const report = await collector.collect();
+
+      expect(report).toBeDefined();
+      expect(report.evaluations).toHaveLength(4);
+      // All controls should be ERROR because every API call fails
+      for (const evaluation of report.evaluations) {
+        expect(evaluation.result).toBe(ControlResult.ERROR);
+      }
+      expect(report.summary.errorControls).toBe(4);
+      expect(report.summary.compliancePercentage).toBe(0);
     });
   });
 
   describe('CC1.1 - Code Review Process', () => {
     it('should PASS when branch protection requires approval', async () => {
-      mockOctokit.rest.repos.getBranchProtection.mockResolvedValue({
-        data: {
-          required_pull_request_reviews: {
-            required_approving_review_count: 1,
-          },
-        },
-      });
+      setupDefaultMocks();
 
-      mockOctokit.rest.pulls.list.mockResolvedValue({
-        data: [
-          {
-            number: 1,
-            title: 'Test PR',
-            merged_at: '2024-01-01T00:00:00Z',
-            created_at: '2024-01-01T00:00:00Z',
-            html_url: 'https://github.com/test/test/pull/1',
-          },
-        ],
+      // Override workflows to have no workflows (zero total_count)
+      mockOctokit.actions.listRepoWorkflows.mockResolvedValue({
+        data: { total_count: 0, workflows: [] },
       });
-
-      mockOctokit.rest.pulls.listReviews.mockResolvedValue({
-        data: [{ state: 'APPROVED' }],
-      });
-
-      mockOctokit.rest.repos.getContent.mockRejectedValue({ status: 404 });
-      mockOctokit.rest.actions.listRepoWorkflows.mockResolvedValue({
-        data: { workflows: [] },
-      });
-      mockOctokit.rest.repos.listDeployments.mockResolvedValue({ data: [] });
-      mockOctokit.rest.repos.listCollaborators.mockResolvedValue({ data: [] });
-      mockOctokit.rest.issues.listForRepo.mockResolvedValue({ data: [] });
-      mockOctokit.request.mockResolvedValue({ data: [] });
+      mockOctokit.repos.listDeployments.mockResolvedValue({ data: [] });
+      mockOctokit.repos.listCollaborators.mockResolvedValue({ data: [] });
 
       const report = await collector.collect();
-      const cc11Result = report.controls.find((c) => c.controlId === 'CC1.1');
+      const cc11Result = report.evaluations.find((c) => c.controlId === 'CC1.1');
 
       expect(cc11Result).toBeDefined();
-      expect(cc11Result?.status).toBe(ComplianceStatus.PASS);
+      expect(cc11Result?.result).toBe(ControlResult.PASS);
       expect(cc11Result?.evidence.length).toBeGreaterThan(0);
     });
 
     it('should FAIL when branch protection does not require approval', async () => {
-      mockOctokit.rest.repos.getBranchProtection.mockResolvedValue({
+      setupDefaultMocks();
+
+      // Override branch protection to have no required reviews
+      mockOctokit.repos.getBranchProtection.mockResolvedValue({
         data: {
           required_pull_request_reviews: null,
         },
       });
 
-      mockOctokit.rest.pulls.list.mockResolvedValue({ data: [] });
-      mockOctokit.rest.repos.getContent.mockRejectedValue({ status: 404 });
-      mockOctokit.rest.actions.listRepoWorkflows.mockResolvedValue({
-        data: { workflows: [] },
+      mockOctokit.pulls.list.mockResolvedValue({ data: [] });
+      mockOctokit.actions.listRepoWorkflows.mockResolvedValue({
+        data: { total_count: 0, workflows: [] },
       });
-      mockOctokit.rest.repos.listDeployments.mockResolvedValue({ data: [] });
-      mockOctokit.rest.repos.listCollaborators.mockResolvedValue({ data: [] });
-      mockOctokit.rest.issues.listForRepo.mockResolvedValue({ data: [] });
-      mockOctokit.request.mockResolvedValue({ data: [] });
+      mockOctokit.repos.listDeployments.mockResolvedValue({ data: [] });
+      mockOctokit.repos.listCollaborators.mockResolvedValue({ data: [] });
 
       const report = await collector.collect();
-      const cc11Result = report.controls.find((c) => c.controlId === 'CC1.1');
+      const cc11Result = report.evaluations.find((c) => c.controlId === 'CC1.1');
 
       expect(cc11Result).toBeDefined();
-      expect(cc11Result?.status).toBe(ComplianceStatus.FAIL);
-      expect(cc11Result?.recommendations).toBeDefined();
+      expect(cc11Result?.result).toBe(ControlResult.FAIL);
+      expect(cc11Result?.findings).toBeDefined();
+      expect(cc11Result?.findings?.length).toBeGreaterThan(0);
     });
   });
 });

@@ -16,6 +16,11 @@ inputs:
     description: 'Anthropic API key for Claude analysis'
     required: true
 
+  license-key:
+    description: 'License key for premium features (get one at https://compliance-autopilot.com/pricing)'
+    required: false
+    default: ''
+
   frameworks:
     description: 'Comma-separated frameworks to check (soc2,gdpr,iso27001)'
     required: false

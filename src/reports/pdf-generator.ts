@@ -526,6 +526,20 @@ export class PDFGenerator {
     this.currentY -= 5;
   }
 
+  /**
+   * Sanitize text to only include WinAnsiEncoding compatible characters
+   */
+  private sanitizeText(text: string): string {
+    return text
+      .replace(/[\u2018\u2019]/g, "'") // Smart quotes to regular quotes
+      .replace(/[\u201C\u201D]/g, '"') // Smart double quotes
+      .replace(/[\u2022\u2023\u25E6\u2043\u2219]/g, '-') // Bullets to dash
+      .replace(/[\u2013\u2014]/g, '-') // En/Em dash to regular dash
+      .replace(/[\u2026]/g, '...') // Ellipsis
+      .replace(/[\u00A0]/g, ' ') // Non-breaking space
+      .replace(/[^\x00-\xFF]/g, ''); // Remove any other non-Latin1 chars
+  }
+
   private drawText(
     text: string,
     options: {
@@ -537,6 +551,7 @@ export class PDFGenerator {
       y?: number;
     }
   ): void {
+    const sanitizedText = this.sanitizeText(text);
     const font = options.font || this.fonts.regular;
     const size = options.size || FONT_SIZES.body;
     const color = options.color || COLORS.text;
@@ -545,7 +560,7 @@ export class PDFGenerator {
 
     if (options.maxWidth) {
       // Wrap text
-      const lines = this.wrapText(text, font, size, options.maxWidth);
+      const lines = this.wrapText(sanitizedText, font, size, options.maxWidth);
       lines.forEach((line, i) => {
         this.currentPage.drawText(line, {
           x,
@@ -557,7 +572,7 @@ export class PDFGenerator {
       });
       this.currentY = y - lines.length * (size + 4) - 5;
     } else {
-      this.currentPage.drawText(text, {
+      this.currentPage.drawText(sanitizedText, {
         x,
         y,
         size,
@@ -570,7 +585,7 @@ export class PDFGenerator {
 
   private drawBulletList(items: string[]): void {
     items.forEach((item) => {
-      this.drawText(`• ${item}`, {
+      this.drawText(`- ${item}`, {
         font: this.fonts.regular,
         size: FONT_SIZES.body,
         color: COLORS.text,

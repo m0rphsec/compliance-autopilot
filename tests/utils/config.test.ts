@@ -4,281 +4,435 @@
 
 import { describe, it, expect, beforeEach, jest } from '@jest/globals';
 import * as core from '@actions/core';
-import { loadConfig, validateConfig, getConfig, type ActionConfig } from '../../src/utils/config.js';
-import { ComplianceFramework } from '../../src/types/evidence.js';
-import { ConfigError } from '../../src/utils/errors.js';
+import * as github from '@actions/github';
+import { parseInputs, getGitHubContext, validatePermissions } from '../../src/utils/config.js';
+import { ValidationError } from '../../src/utils/errors.js';
 
 // Mock @actions/core
 jest.mock('@actions/core');
+jest.mock('@actions/github');
 
-describe('loadConfig', () => {
+const mockedCore = core as jest.Mocked<typeof core>;
+const mockedGithub = github as jest.Mocked<typeof github>;
+
+describe('parseInputs', () => {
   beforeEach(() => {
-    // Reset environment
-    delete process.env.GITHUB_TOKEN;
-    delete process.env.GITHUB_REPOSITORY;
-    delete process.env.INPUT_FRAMEWORKS;
     jest.clearAllMocks();
+    // Default mock for getInput - returns empty string by default
+    mockedCore.getInput.mockImplementation((name: string, options?: core.InputOptions) => {
+      return '';
+    });
+    mockedCore.getBooleanInput.mockReturnValue(false);
   });
 
-  it('should load minimal valid config', () => {
-    process.env.GITHUB_TOKEN = 'ghp_testtoken123456789012345678901234567890';
-    process.env.GITHUB_REPOSITORY = 'owner/repo';
+  it('should parse minimal valid inputs', () => {
+    mockedCore.getInput.mockImplementation((name: string) => {
+      switch (name) {
+        case 'github-token': return 'ghp_testtoken123456789012345678901234567890';
+        case 'anthropic-api-key': return 'sk-ant-testkey123456789';
+        case 'frameworks': return 'soc2';
+        case 'report-format': return 'both';
+        case 'slack-webhook': return '';
+        case 'license-key': return '';
+        default: return '';
+      }
+    });
+    mockedCore.getBooleanInput.mockReturnValue(false);
 
-    const config = loadConfig();
+    const inputs = parseInputs();
 
-    expect(config.githubToken).toBe('ghp_testtoken123456789012345678901234567890');
-    expect(config.repository).toBe('owner/repo');
-    expect(config.frameworks).toEqual([ComplianceFramework.SOC2]);
+    expect(inputs.githubToken).toBe('ghp_testtoken123456789012345678901234567890');
+    expect(inputs.anthropicApiKey).toBe('sk-ant-testkey123456789');
+    expect(inputs.frameworks).toEqual(['soc2']);
+    expect(inputs.reportFormat).toBe('both');
+    expect(inputs.failOnViolations).toBe(false);
   });
 
-  it('should load config with multiple frameworks', () => {
-    process.env.GITHUB_TOKEN = 'ghp_testtoken123456789012345678901234567890';
-    process.env.GITHUB_REPOSITORY = 'owner/repo';
-    process.env.INPUT_FRAMEWORKS = 'SOC2,GDPR,ISO27001';
+  it('should parse multiple frameworks', () => {
+    mockedCore.getInput.mockImplementation((name: string) => {
+      switch (name) {
+        case 'github-token': return 'ghp_testtoken123456789012345678901234567890';
+        case 'anthropic-api-key': return 'sk-ant-testkey123456789';
+        case 'frameworks': return 'soc2,gdpr,iso27001';
+        case 'report-format': return 'both';
+        case 'slack-webhook': return '';
+        case 'license-key': return '';
+        default: return '';
+      }
+    });
+    mockedCore.getBooleanInput.mockReturnValue(false);
 
-    const config = loadConfig();
+    const inputs = parseInputs();
 
-    expect(config.frameworks).toEqual([
-      ComplianceFramework.SOC2,
-      ComplianceFramework.GDPR,
-      ComplianceFramework.ISO27001
-    ]);
+    expect(inputs.frameworks).toEqual(['soc2', 'gdpr', 'iso27001']);
   });
 
-  it('should load config with date range', () => {
-    process.env.GITHUB_TOKEN = 'ghp_testtoken123456789012345678901234567890';
-    process.env.GITHUB_REPOSITORY = 'owner/repo';
-    process.env.INPUT_START_DATE = '2024-01-01T00:00:00Z';
-    process.env.INPUT_END_DATE = '2024-12-31T23:59:59Z';
+  it('should parse json report format', () => {
+    mockedCore.getInput.mockImplementation((name: string) => {
+      switch (name) {
+        case 'github-token': return 'ghp_testtoken123456789012345678901234567890';
+        case 'anthropic-api-key': return 'sk-ant-testkey123456789';
+        case 'frameworks': return 'soc2';
+        case 'report-format': return 'json';
+        case 'slack-webhook': return '';
+        case 'license-key': return '';
+        default: return '';
+      }
+    });
+    mockedCore.getBooleanInput.mockReturnValue(false);
 
-    const config = loadConfig();
+    const inputs = parseInputs();
 
-    expect(config.dateRange).toBeDefined();
-    expect(config.dateRange?.start).toBe('2024-01-01T00:00:00.000Z');
-    expect(config.dateRange?.end).toBe('2024-12-31T23:59:59.000Z');
+    expect(inputs.reportFormat).toBe('json');
   });
 
-  it('should load config with control IDs', () => {
-    process.env.GITHUB_TOKEN = 'ghp_testtoken123456789012345678901234567890';
-    process.env.GITHUB_REPOSITORY = 'owner/repo';
-    process.env.INPUT_CONTROL_IDS = 'CC6.1,CC7.2,CC8.1';
+  it('should parse pdf report format', () => {
+    mockedCore.getInput.mockImplementation((name: string) => {
+      switch (name) {
+        case 'github-token': return 'ghp_testtoken123456789012345678901234567890';
+        case 'anthropic-api-key': return 'sk-ant-testkey123456789';
+        case 'frameworks': return 'soc2';
+        case 'report-format': return 'pdf';
+        case 'slack-webhook': return '';
+        case 'license-key': return '';
+        default: return '';
+      }
+    });
+    mockedCore.getBooleanInput.mockReturnValue(false);
 
-    const config = loadConfig();
+    const inputs = parseInputs();
 
-    expect(config.controlIds).toEqual(['CC6.1', 'CC7.2', 'CC8.1']);
+    expect(inputs.reportFormat).toBe('pdf');
   });
 
-  it('should load config with custom settings', () => {
-    process.env.GITHUB_TOKEN = 'ghp_testtoken123456789012345678901234567890';
-    process.env.GITHUB_REPOSITORY = 'owner/repo';
-    process.env.INPUT_FAIL_ON_NON_COMPLIANCE = 'false';
-    process.env.INPUT_OUTPUT_FORMAT = 'json';
-    process.env.INPUT_OUTPUT_PATH = 'custom-report';
-    process.env.INPUT_UPLOAD_ARTIFACT = 'false';
-    process.env.INPUT_ARTIFACT_NAME = 'custom-artifact';
-    process.env.INPUT_MIN_COMPLIANCE_PERCENTAGE = '90';
+  it('should parse slack webhook', () => {
+    mockedCore.getInput.mockImplementation((name: string) => {
+      switch (name) {
+        case 'github-token': return 'ghp_testtoken123456789012345678901234567890';
+        case 'anthropic-api-key': return 'sk-ant-testkey123456789';
+        case 'frameworks': return 'soc2';
+        case 'report-format': return 'both';
+        case 'slack-webhook': return 'https://hooks.slack.com/services/T00/B00/xxx';
+        case 'license-key': return '';
+        default: return '';
+      }
+    });
+    mockedCore.getBooleanInput.mockReturnValue(false);
 
-    const config = loadConfig();
+    const inputs = parseInputs();
 
-    expect(config.failOnNonCompliance).toBe(false);
-    expect(config.outputFormat).toBe('json');
-    expect(config.outputPath).toBe('custom-report');
-    expect(config.uploadArtifact).toBe(false);
-    expect(config.artifactName).toBe('custom-artifact');
-    expect(config.minCompliancePercentage).toBe(90);
+    expect(inputs.slackWebhook).toBe('https://hooks.slack.com/services/T00/B00/xxx');
   });
 
-  it('should throw error if github token is missing', () => {
-    process.env.GITHUB_REPOSITORY = 'owner/repo';
+  it('should parse license key', () => {
+    mockedCore.getInput.mockImplementation((name: string) => {
+      switch (name) {
+        case 'github-token': return 'ghp_testtoken123456789012345678901234567890';
+        case 'anthropic-api-key': return 'sk-ant-testkey123456789';
+        case 'frameworks': return 'soc2';
+        case 'report-format': return 'both';
+        case 'slack-webhook': return '';
+        case 'license-key': return 'my-license-key';
+        default: return '';
+      }
+    });
+    mockedCore.getBooleanInput.mockReturnValue(false);
 
-    expect(() => loadConfig()).toThrow(ConfigError);
-    expect(() => loadConfig()).toThrow('github-token');
+    const inputs = parseInputs();
+
+    expect(inputs.licenseKey).toBe('my-license-key');
   });
 
-  it('should throw error if repository is missing', () => {
-    process.env.GITHUB_TOKEN = 'ghp_testtoken123456789012345678901234567890';
+  it('should parse failOnViolations as true', () => {
+    mockedCore.getInput.mockImplementation((name: string) => {
+      switch (name) {
+        case 'github-token': return 'ghp_testtoken123456789012345678901234567890';
+        case 'anthropic-api-key': return 'sk-ant-testkey123456789';
+        case 'frameworks': return 'soc2';
+        case 'report-format': return 'both';
+        case 'slack-webhook': return '';
+        case 'license-key': return '';
+        default: return '';
+      }
+    });
+    mockedCore.getBooleanInput.mockReturnValue(true);
 
-    expect(() => loadConfig()).toThrow(ConfigError);
-    expect(() => loadConfig()).toThrow('repository');
+    const inputs = parseInputs();
+
+    expect(inputs.failOnViolations).toBe(true);
   });
 
-  it('should throw error for invalid repository format', () => {
-    process.env.GITHUB_TOKEN = 'ghp_testtoken123456789012345678901234567890';
-    process.env.GITHUB_REPOSITORY = 'invalid-repo';
+  it('should throw ValidationError if github-token is empty', () => {
+    mockedCore.getInput.mockImplementation((name: string) => {
+      switch (name) {
+        case 'github-token': return '';
+        case 'anthropic-api-key': return 'sk-ant-testkey123456789';
+        case 'frameworks': return 'soc2';
+        case 'report-format': return 'both';
+        case 'slack-webhook': return '';
+        case 'license-key': return '';
+        default: return '';
+      }
+    });
+    mockedCore.getBooleanInput.mockReturnValue(false);
 
-    expect(() => loadConfig()).toThrow(ConfigError);
-    expect(() => loadConfig()).toThrow('Invalid repository format');
+    expect(() => parseInputs()).toThrow(ValidationError);
+    expect(() => parseInputs()).toThrow('github-token is required');
   });
 
-  it('should throw error for invalid framework', () => {
-    process.env.GITHUB_TOKEN = 'ghp_testtoken123456789012345678901234567890';
-    process.env.GITHUB_REPOSITORY = 'owner/repo';
-    process.env.INPUT_FRAMEWORKS = 'INVALID';
+  it('should throw ValidationError if anthropic-api-key is empty', () => {
+    mockedCore.getInput.mockImplementation((name: string) => {
+      switch (name) {
+        case 'github-token': return 'ghp_testtoken123456789012345678901234567890';
+        case 'anthropic-api-key': return '';
+        case 'frameworks': return 'soc2';
+        case 'report-format': return 'both';
+        case 'slack-webhook': return '';
+        case 'license-key': return '';
+        default: return '';
+      }
+    });
+    mockedCore.getBooleanInput.mockReturnValue(false);
 
-    expect(() => loadConfig()).toThrow(ConfigError);
+    expect(() => parseInputs()).toThrow(ValidationError);
+    expect(() => parseInputs()).toThrow('anthropic-api-key is required');
   });
 
-  it('should throw error for invalid date', () => {
-    process.env.GITHUB_TOKEN = 'ghp_testtoken123456789012345678901234567890';
-    process.env.GITHUB_REPOSITORY = 'owner/repo';
-    process.env.INPUT_START_DATE = 'invalid-date';
-    process.env.INPUT_END_DATE = '2024-12-31T00:00:00Z';
+  it('should throw ValidationError if anthropic-api-key does not start with sk-ant-', () => {
+    mockedCore.getInput.mockImplementation((name: string) => {
+      switch (name) {
+        case 'github-token': return 'ghp_testtoken123456789012345678901234567890';
+        case 'anthropic-api-key': return 'invalid-key-format';
+        case 'frameworks': return 'soc2';
+        case 'report-format': return 'both';
+        case 'slack-webhook': return '';
+        case 'license-key': return '';
+        default: return '';
+      }
+    });
+    mockedCore.getBooleanInput.mockReturnValue(false);
 
-    expect(() => loadConfig()).toThrow(ConfigError);
+    expect(() => parseInputs()).toThrow(ValidationError);
+    expect(() => parseInputs()).toThrow('anthropic-api-key must be a valid Anthropic API key');
   });
 
-  it('should throw error if start date is after end date', () => {
-    process.env.GITHUB_TOKEN = 'ghp_testtoken123456789012345678901234567890';
-    process.env.GITHUB_REPOSITORY = 'owner/repo';
-    process.env.INPUT_START_DATE = '2024-12-31T00:00:00Z';
-    process.env.INPUT_END_DATE = '2024-01-01T00:00:00Z';
+  it('should throw ValidationError for invalid framework', () => {
+    mockedCore.getInput.mockImplementation((name: string) => {
+      switch (name) {
+        case 'github-token': return 'ghp_testtoken123456789012345678901234567890';
+        case 'anthropic-api-key': return 'sk-ant-testkey123456789';
+        case 'frameworks': return 'INVALID';
+        case 'report-format': return 'both';
+        case 'slack-webhook': return '';
+        case 'license-key': return '';
+        default: return '';
+      }
+    });
+    mockedCore.getBooleanInput.mockReturnValue(false);
 
-    expect(() => loadConfig()).toThrow(ConfigError);
-    expect(() => loadConfig()).toThrow('start-date must be before end-date');
+    expect(() => parseInputs()).toThrow(ValidationError);
+    expect(() => parseInputs()).toThrow('Invalid frameworks');
   });
 
-  it('should throw error for invalid output format', () => {
-    process.env.GITHUB_TOKEN = 'ghp_testtoken123456789012345678901234567890';
-    process.env.GITHUB_REPOSITORY = 'owner/repo';
-    process.env.INPUT_OUTPUT_FORMAT = 'invalid';
+  it('should throw ValidationError for invalid report format', () => {
+    mockedCore.getInput.mockImplementation((name: string) => {
+      switch (name) {
+        case 'github-token': return 'ghp_testtoken123456789012345678901234567890';
+        case 'anthropic-api-key': return 'sk-ant-testkey123456789';
+        case 'frameworks': return 'soc2';
+        case 'report-format': return 'csv';
+        case 'slack-webhook': return '';
+        case 'license-key': return '';
+        default: return '';
+      }
+    });
+    mockedCore.getBooleanInput.mockReturnValue(false);
 
-    expect(() => loadConfig()).toThrow(ConfigError);
+    expect(() => parseInputs()).toThrow(ValidationError);
+    expect(() => parseInputs()).toThrow('Invalid report-format');
   });
 
-  it('should throw error for invalid min compliance percentage', () => {
-    process.env.GITHUB_TOKEN = 'ghp_testtoken123456789012345678901234567890';
-    process.env.GITHUB_REPOSITORY = 'owner/repo';
-    process.env.INPUT_MIN_COMPLIANCE_PERCENTAGE = '150';
+  it('should throw ValidationError for invalid slack webhook', () => {
+    mockedCore.getInput.mockImplementation((name: string) => {
+      switch (name) {
+        case 'github-token': return 'ghp_testtoken123456789012345678901234567890';
+        case 'anthropic-api-key': return 'sk-ant-testkey123456789';
+        case 'frameworks': return 'soc2';
+        case 'report-format': return 'both';
+        case 'slack-webhook': return 'https://not-slack.com/webhook';
+        case 'license-key': return '';
+        default: return '';
+      }
+    });
+    mockedCore.getBooleanInput.mockReturnValue(false);
 
-    expect(() => loadConfig()).toThrow(ConfigError);
+    expect(() => parseInputs()).toThrow(ValidationError);
+    expect(() => parseInputs()).toThrow('slack-webhook must be a valid Slack webhook URL');
+  });
+
+  it('should set undefined for optional fields when empty', () => {
+    mockedCore.getInput.mockImplementation((name: string) => {
+      switch (name) {
+        case 'github-token': return 'ghp_testtoken123456789012345678901234567890';
+        case 'anthropic-api-key': return 'sk-ant-testkey123456789';
+        case 'frameworks': return 'soc2';
+        case 'report-format': return 'both';
+        case 'slack-webhook': return '';
+        case 'license-key': return '';
+        default: return '';
+      }
+    });
+    mockedCore.getBooleanInput.mockReturnValue(false);
+
+    const inputs = parseInputs();
+
+    expect(inputs.slackWebhook).toBeUndefined();
+    expect(inputs.licenseKey).toBeUndefined();
+  });
+
+  it('should trim and lowercase framework names', () => {
+    mockedCore.getInput.mockImplementation((name: string) => {
+      switch (name) {
+        case 'github-token': return 'ghp_testtoken123456789012345678901234567890';
+        case 'anthropic-api-key': return 'sk-ant-testkey123456789';
+        case 'frameworks': return ' SOC2 , GDPR ';
+        case 'report-format': return 'both';
+        case 'slack-webhook': return '';
+        case 'license-key': return '';
+        default: return '';
+      }
+    });
+    mockedCore.getBooleanInput.mockReturnValue(false);
+
+    const inputs = parseInputs();
+
+    expect(inputs.frameworks).toEqual(['soc2', 'gdpr']);
+  });
+
+  it('should use default framework when frameworks input is empty', () => {
+    mockedCore.getInput.mockImplementation((name: string) => {
+      switch (name) {
+        case 'github-token': return 'ghp_testtoken123456789012345678901234567890';
+        case 'anthropic-api-key': return 'sk-ant-testkey123456789';
+        case 'frameworks': return '';
+        case 'report-format': return 'both';
+        case 'slack-webhook': return '';
+        case 'license-key': return '';
+        default: return '';
+      }
+    });
+    mockedCore.getBooleanInput.mockReturnValue(false);
+
+    const inputs = parseInputs();
+
+    expect(inputs.frameworks).toEqual(['soc2']);
+  });
+
+  it('should use default report format when report-format input is empty', () => {
+    mockedCore.getInput.mockImplementation((name: string) => {
+      switch (name) {
+        case 'github-token': return 'ghp_testtoken123456789012345678901234567890';
+        case 'anthropic-api-key': return 'sk-ant-testkey123456789';
+        case 'frameworks': return 'soc2';
+        case 'report-format': return '';
+        case 'slack-webhook': return '';
+        case 'license-key': return '';
+        default: return '';
+      }
+    });
+    mockedCore.getBooleanInput.mockReturnValue(false);
+
+    const inputs = parseInputs();
+
+    expect(inputs.reportFormat).toBe('both');
   });
 });
 
-describe('validateConfig', () => {
-  it('should validate valid config', () => {
-    const config: ActionConfig = {
-      githubToken: 'ghp_testtoken123456789012345678901234567890',
-      repository: 'owner/repo',
-      frameworks: [ComplianceFramework.SOC2],
-      failOnNonCompliance: true,
-      outputFormat: 'both',
-      uploadArtifact: true,
-      artifactName: 'compliance-report',
-      minCompliancePercentage: 80
-    };
-
-    expect(() => validateConfig(config)).not.toThrow();
-  });
-
-  it('should throw error for invalid token format', () => {
-    const config: ActionConfig = {
-      githubToken: 'invalid-token',
-      repository: 'owner/repo',
-      frameworks: [ComplianceFramework.SOC2],
-      failOnNonCompliance: true,
-      outputFormat: 'both',
-      uploadArtifact: true,
-      artifactName: 'compliance-report',
-      minCompliancePercentage: 80
-    };
-
-    expect(() => validateConfig(config)).toThrow(ConfigError);
-    expect(() => validateConfig(config)).toThrow('Invalid GitHub token format');
-  });
-
-  it('should throw error for empty frameworks', () => {
-    const config: ActionConfig = {
-      githubToken: 'ghp_testtoken123456789012345678901234567890',
-      repository: 'owner/repo',
-      frameworks: [],
-      failOnNonCompliance: true,
-      outputFormat: 'both',
-      uploadArtifact: true,
-      artifactName: 'compliance-report',
-      minCompliancePercentage: 80
-    };
-
-    expect(() => validateConfig(config)).toThrow(ConfigError);
-  });
-
-  it('should throw error for invalid date range', () => {
-    const config: ActionConfig = {
-      githubToken: 'ghp_testtoken123456789012345678901234567890',
-      repository: 'owner/repo',
-      frameworks: [ComplianceFramework.SOC2],
-      dateRange: {
-        start: '2024-12-31T00:00:00Z',
-        end: '2024-01-01T00:00:00Z'
-      },
-      failOnNonCompliance: true,
-      outputFormat: 'both',
-      uploadArtifact: true,
-      artifactName: 'compliance-report',
-      minCompliancePercentage: 80
-    };
-
-    expect(() => validateConfig(config)).toThrow(ConfigError);
-  });
-
-  it('should throw error for future end date', () => {
-    const futureDate = new Date();
-    futureDate.setFullYear(futureDate.getFullYear() + 1);
-
-    const config: ActionConfig = {
-      githubToken: 'ghp_testtoken123456789012345678901234567890',
-      repository: 'owner/repo',
-      frameworks: [ComplianceFramework.SOC2],
-      dateRange: {
-        start: '2024-01-01T00:00:00Z',
-        end: futureDate.toISOString()
-      },
-      failOnNonCompliance: true,
-      outputFormat: 'both',
-      uploadArtifact: true,
-      artifactName: 'compliance-report',
-      minCompliancePercentage: 80
-    };
-
-    expect(() => validateConfig(config)).toThrow(ConfigError);
-  });
-
-  it('should throw error for invalid min compliance percentage', () => {
-    const config: ActionConfig = {
-      githubToken: 'ghp_testtoken123456789012345678901234567890',
-      repository: 'owner/repo',
-      frameworks: [ComplianceFramework.SOC2],
-      failOnNonCompliance: true,
-      outputFormat: 'both',
-      uploadArtifact: true,
-      artifactName: 'compliance-report',
-      minCompliancePercentage: 150
-    };
-
-    expect(() => validateConfig(config)).toThrow(ConfigError);
-  });
-});
-
-describe('getConfig', () => {
+describe('getGitHubContext', () => {
   beforeEach(() => {
-    delete process.env.GITHUB_TOKEN;
-    delete process.env.GITHUB_REPOSITORY;
     jest.clearAllMocks();
   });
 
-  it('should return validated config', () => {
-    process.env.GITHUB_TOKEN = 'ghp_testtoken123456789012345678901234567890';
-    process.env.GITHUB_REPOSITORY = 'owner/repo';
+  it('should extract basic GitHub context', () => {
+    Object.defineProperty(github, 'context', {
+      value: {
+        repo: { owner: 'test-owner', repo: 'test-repo' },
+        ref: 'refs/heads/main',
+        sha: 'abc123',
+        payload: {},
+      },
+      writable: true,
+    });
 
-    const config = getConfig();
+    const ctx = getGitHubContext();
 
-    expect(config.githubToken).toBeTruthy();
-    expect(config.repository).toBe('owner/repo');
+    expect(ctx.owner).toBe('test-owner');
+    expect(ctx.repo).toBe('test-repo');
+    expect(ctx.ref).toBe('refs/heads/main');
+    expect(ctx.sha).toBe('abc123');
+    expect(ctx.pullRequest).toBeUndefined();
   });
 
-  it('should throw error for invalid config', () => {
-    process.env.GITHUB_TOKEN = 'invalid-token';
-    process.env.GITHUB_REPOSITORY = 'owner/repo';
+  it('should include pull request information when available', () => {
+    Object.defineProperty(github, 'context', {
+      value: {
+        repo: { owner: 'test-owner', repo: 'test-repo' },
+        ref: 'refs/pull/42/merge',
+        sha: 'abc123',
+        payload: {
+          pull_request: {
+            number: 42,
+            head: { ref: 'feature-branch' },
+            base: { ref: 'main' },
+          },
+        },
+      },
+      writable: true,
+    });
 
-    expect(() => getConfig()).toThrow(ConfigError);
+    const ctx = getGitHubContext();
+
+    expect(ctx.pullRequest).toBeDefined();
+    expect(ctx.pullRequest?.number).toBe(42);
+    expect(ctx.pullRequest?.head).toBe('feature-branch');
+    expect(ctx.pullRequest?.base).toBe('main');
+  });
+});
+
+describe('validatePermissions', () => {
+  const originalEnv = process.env;
+
+  beforeEach(() => {
+    process.env = { ...originalEnv };
+  });
+
+  afterAll(() => {
+    process.env = originalEnv;
+  });
+
+  it('should throw if not running in GitHub Actions', () => {
+    delete process.env.GITHUB_ACTIONS;
+
+    expect(() => validatePermissions()).toThrow(ValidationError);
+    expect(() => validatePermissions()).toThrow('must be run in GitHub Actions');
+  });
+
+  it('should throw if required env vars are missing', () => {
+    process.env.GITHUB_ACTIONS = 'true';
+    delete process.env.GITHUB_REPOSITORY;
+    delete process.env.GITHUB_SHA;
+    delete process.env.GITHUB_REF;
+
+    expect(() => validatePermissions()).toThrow(ValidationError);
+    expect(() => validatePermissions()).toThrow('Missing required environment variables');
+  });
+
+  it('should not throw when all required env vars are present', () => {
+    process.env.GITHUB_ACTIONS = 'true';
+    process.env.GITHUB_REPOSITORY = 'owner/repo';
+    process.env.GITHUB_SHA = 'abc123';
+    process.env.GITHUB_REF = 'refs/heads/main';
+
+    expect(() => validatePermissions()).not.toThrow();
   });
 });

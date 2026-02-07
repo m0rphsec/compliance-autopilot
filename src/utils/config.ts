@@ -15,6 +15,7 @@ import { ValidationError } from './errors';
 export function parseInputs(): ActionInputs {
   const githubToken = core.getInput('github-token', { required: true });
   const anthropicApiKey = core.getInput('anthropic-api-key', { required: true });
+  const licenseKey = core.getInput('license-key', { required: false }) || undefined;
   const frameworksInput = core.getInput('frameworks', { required: false }) || 'soc2';
   const reportFormat = core.getInput('report-format', { required: false }) || 'both';
   const failOnViolations = core.getBooleanInput('fail-on-violations', { required: false });
@@ -77,6 +78,7 @@ export function parseInputs(): ActionInputs {
   return {
     githubToken,
     anthropicApiKey,
+    licenseKey,
     frameworks: frameworks as ComplianceFramework[],
     reportFormat: reportFormat as 'pdf' | 'json' | 'both',
     failOnViolations,

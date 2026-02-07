@@ -61,7 +61,7 @@ export abstract class BaseError extends Error {
       statusCode?: number;
       context?: Record<string, unknown>;
       cause?: Error;
-    },
+    }
   ) {
     super(message);
     this.name = this.constructor.name;
@@ -109,7 +109,7 @@ export class APIError extends BaseError {
       statusCode?: number;
       context?: Record<string, unknown>;
       cause?: Error;
-    },
+    }
   ) {
     super(message, code, options);
   }
@@ -125,7 +125,7 @@ export class APIError extends BaseError {
     return new APIError(
       `Authentication failed${reason ? ': ' + reason : ''}`,
       ErrorCode.API_UNAUTHORIZED,
-      { statusCode: 401, context: { reason } },
+      { statusCode: 401, context: { reason } }
     );
   }
 
@@ -161,7 +161,7 @@ export class ValidationError extends BaseError {
       received?: unknown;
       context?: Record<string, unknown>;
       cause?: Error;
-    },
+    }
   ) {
     super(message, code, {
       statusCode: 400,
@@ -183,19 +183,15 @@ export class ValidationError extends BaseError {
     return new ValidationError(
       'Missing required field: ' + field,
       ErrorCode.VALIDATION_MISSING_REQUIRED,
-      { field, expected: 'non-empty value' },
+      { field, expected: 'non-empty value' }
     );
   }
 
-  static invalidFormat(
-    field: string,
-    expected: string,
-    received: unknown,
-  ): ValidationError {
+  static invalidFormat(field: string, expected: string, received: unknown): ValidationError {
     return new ValidationError(
       "Invalid format for field '" + field + "': expected " + expected,
       ErrorCode.VALIDATION_INVALID_FORMAT,
-      { field, expected, received },
+      { field, expected, received }
     );
   }
 
@@ -219,7 +215,7 @@ export class ComplianceError extends BaseError {
       framework?: string;
       context?: Record<string, unknown>;
       cause?: Error;
-    },
+    }
   ) {
     super(message, code, {
       context: {
@@ -238,7 +234,7 @@ export class ComplianceError extends BaseError {
     return new ComplianceError(
       'Control ' + controlId + ' failed: ' + reason,
       ErrorCode.COMPLIANCE_CONTROL_FAILED,
-      { controlId, context: { reason } },
+      { controlId, context: { reason } }
     );
   }
 
@@ -246,7 +242,7 @@ export class ComplianceError extends BaseError {
     return new ComplianceError(
       'Missing required evidence for control ' + controlId + ': ' + evidenceType,
       ErrorCode.COMPLIANCE_EVIDENCE_MISSING,
-      { controlId, context: { evidenceType } },
+      { controlId, context: { evidenceType } }
     );
   }
 
@@ -254,7 +250,7 @@ export class ComplianceError extends BaseError {
     return new ComplianceError(
       'Invalid compliance framework: ' + framework,
       ErrorCode.COMPLIANCE_INVALID_FRAMEWORK,
-      { framework },
+      { framework }
     );
   }
 
@@ -262,7 +258,7 @@ export class ComplianceError extends BaseError {
     return new ComplianceError(
       'Failed to generate compliance report: ' + reason,
       ErrorCode.COMPLIANCE_REPORT_GENERATION,
-      { context: { reason }, cause },
+      { context: { reason }, cause }
     );
   }
 }
@@ -277,7 +273,7 @@ export class ConfigError extends BaseError {
     options?: {
       context?: Record<string, unknown>;
       cause?: Error;
-    },
+    }
   ) {
     super(message, code, options);
   }
@@ -286,7 +282,7 @@ export class ConfigError extends BaseError {
     return new ConfigError(
       'Missing required configuration: ' + configName,
       ErrorCode.CONFIG_MISSING,
-      { context: { configName } },
+      { context: { configName } }
     );
   }
 
@@ -294,7 +290,7 @@ export class ConfigError extends BaseError {
     return new ConfigError(
       'Failed to parse configuration: ' + reason,
       ErrorCode.CONFIG_PARSE_ERROR,
-      { context: { reason }, cause },
+      { context: { reason }, cause }
     );
   }
 }

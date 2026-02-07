@@ -2,7 +2,7 @@
  * Tests for logger utility
  */
 
-import { describe, it, expect, jest, beforeEach } from '@jest/globals';
+/* eslint-disable @typescript-eslint/no-require-imports */
 import * as core from '@actions/core';
 import { Logger, LogLevel, createLogger, type LogMetadata } from '../../src/utils/logger.js';
 
@@ -177,7 +177,7 @@ describe('Logger', () => {
 
   describe('measure', () => {
     it('should measure successful operation', async () => {
-      const logger = new Logger();
+      const logger = new Logger({ level: LogLevel.DEBUG });
       const fn = jest.fn().mockResolvedValue('result');
 
       const result = await logger.measure('testOperation', fn);

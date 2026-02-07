@@ -57,10 +57,7 @@ export class RateLimiter {
   /**
    * Execute function with rate limiting and retry logic
    */
-  async execute<T>(
-    fn: () => Promise<T>,
-    retryConfig?: Partial<RetryConfig>
-  ): Promise<T> {
+  async execute<T>(fn: () => Promise<T>, retryConfig?: Partial<RetryConfig>): Promise<T> {
     const config: RetryConfig = {
       maxAttempts: retryConfig?.maxAttempts || this.config.maxRetries,
       initialDelayMs: retryConfig?.initialDelayMs || 1000,
@@ -100,9 +97,7 @@ export class RateLimiter {
       }
     }
 
-    throw new Error(
-      `Request failed after ${config.maxAttempts} attempts: ${lastError?.message}`
-    );
+    throw new Error(`Request failed after ${config.maxAttempts} attempts: ${lastError?.message}`);
   }
 
   /**

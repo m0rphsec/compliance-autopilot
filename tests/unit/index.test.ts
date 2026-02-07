@@ -212,7 +212,7 @@ describe('Main Entry Point', () => {
 
       await expect(run()).rejects.toThrow();
       expect(mockCore.setFailed).toHaveBeenCalledWith(
-        expect.stringContaining('Invalid Input')
+        expect.stringContaining('github-token is required')
       );
     });
 
