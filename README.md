@@ -185,7 +185,7 @@ jobs:
 | Input | Description | Required | Default |
 |-------|-------------|----------|---------|
 | `github-token` | GitHub token for API access | No | `${{ github.token }}` |
-| `anthropic-api-key` | Anthropic API key for Claude analysis | Yes | - |
+| `anthropic-api-key` | Anthropic API key for Claude analysis (required for GDPR only) | No | - |
 | `license-key` | License key for paid features | No | - |
 | `frameworks` | Comma-separated frameworks (`soc2,gdpr,iso27001`) | No | `soc2` |
 | `report-format` | Report format (`pdf`, `json`, `both`) | No | `both` |

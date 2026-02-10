@@ -13,8 +13,8 @@ inputs:
     default: ${{ github.token }}
 
   anthropic-api-key:
-    description: 'Anthropic API key for Claude analysis'
-    required: true
+    description: 'Anthropic API key for Claude analysis (required for GDPR framework only)'
+    required: false
 
   license-key:
     description: 'License key for paid features (see pricing in README)'
