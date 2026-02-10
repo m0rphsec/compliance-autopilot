@@ -1,276 +1,313 @@
 /**
  * Unit tests for PDF report generator
- * Tests PDF creation, formatting, and content
+ * Tests real PDF generation with pdf-lib
  */
 
-import { describe, it, expect, jest, beforeEach } from '@jest/globals';
+import { describe, it, expect } from '@jest/globals';
+import { PDFGenerator, ComplianceData } from '../../../src/reports/pdf-generator';
 
-jest.mock('pdf-lib');
-jest.mock('@/utils/logger');
+function makeMinimalData(overrides?: Partial<ComplianceData>): ComplianceData {
+  return {
+    framework: 'SOC2',
+    timestamp: new Date('2025-01-15T10:30:00Z'),
+    repositoryName: 'test-repo',
+    repositoryOwner: 'test-owner',
+    overallScore: 85.5,
+    controls: [
+      {
+        id: 'CC1.1',
+        name: 'Code Review Process',
+        status: 'PASS',
+        evidence: 'All PRs require approval',
+        severity: 'high',
+      },
+    ],
+    summary: {
+      total: 1,
+      passed: 1,
+      failed: 0,
+      notApplicable: 0,
+    },
+    ...overrides,
+  };
+}
 
 describe('PDF Report Generator', () => {
-  let mockPDFDocument: any;
-
-  beforeEach(() => {
-    jest.clearAllMocks();
-
-    mockPDFDocument = {
-      addPage: jest.fn().mockReturnThis(),
-      embedFont: jest.fn(),
-      embedImage: jest.fn(),
-      save: jest.fn().mockResolvedValue(Buffer.from('PDF')),
-      getPages: jest.fn().mockReturnValue([]),
-    };
-  });
-
   describe('Document Structure', () => {
-    it('should create cover page', async () => {
-      // TODO: Verify cover page includes:
-      // - Title: "Compliance Autopilot Report"
-      // - Repository name
-      // - Date/time
-      // - Framework(s) tested
-      // - Overall status (PASS/FAIL)
-      expect(true).toBe(true);
+    it('should generate a PDF as Uint8Array', async () => {
+      const generator = new PDFGenerator();
+      const data = makeMinimalData();
+
+      const output = await generator.generate(data);
+
+      expect(output).toBeInstanceOf(Uint8Array);
+      expect(output.length).toBeGreaterThan(0);
     });
 
-    it('should create executive summary', async () => {
-      // TODO: Summary should include:
-      // - Total controls checked
-      // - Controls passed
-      // - Controls failed
-      // - Key findings
-      // - Recommendations
-      expect(true).toBe(true);
+    it('should produce output containing the PDF header signature', async () => {
+      const generator = new PDFGenerator();
+      const data = makeMinimalData();
+
+      const output = await generator.generate(data);
+
+      // PDF files start with %PDF-
+      const header = String.fromCharCode(...output.slice(0, 5));
+      expect(header).toBe('%PDF-');
     });
 
-    it('should create detailed findings section', async () => {
-      // TODO: For each control:
-      // - Control ID (CC1.1, A.9.2.1, etc.)
-      // - Control name
-      // - Status (PASS/FAIL/N/A)
-      // - Evidence
-      // - Recommendations
-      expect(true).toBe(true);
+    it('should generate multi-page PDF with many controls', async () => {
+      const generator = new PDFGenerator();
+      const controls = Array.from({ length: 20 }, (_, i) => ({
+        id: 'CC' + (i + 1) + '.1',
+        name: 'Control ' + (i + 1),
+        status: (i % 3 === 0 ? 'FAIL' : 'PASS') as 'PASS' | 'FAIL',
+        evidence: 'Evidence for control ' + (i + 1),
+        severity: 'medium' as const,
+        recommendations: i % 3 === 0 ? ['Fix this issue'] : undefined,
+      }));
+
+      const data = makeMinimalData({
+        controls,
+        summary: {
+          total: 20,
+          passed: 14,
+          failed: 6,
+          notApplicable: 0,
+        },
+        overallScore: 70,
+      });
+
+      const output = await generator.generate(data);
+      expect(output).toBeInstanceOf(Uint8Array);
+      // A multi-page PDF should be substantially larger
+      expect(output.length).toBeGreaterThan(1000);
     });
 
-    it('should create appendix with raw data', async () => {
-      // TODO: Include JSON evidence for auditors
-      expect(true).toBe(true);
-    });
+    it('should produce a larger PDF with more controls', async () => {
+      const generator = new PDFGenerator();
 
-    it('should add page numbers', async () => {
-      // TODO: Footer with "Page X of Y"
-      expect(true).toBe(true);
-    });
-  });
+      const smallData = makeMinimalData();
+      const smallOutput = await generator.generate(smallData);
 
-  describe('Styling and Branding', () => {
-    it('should use brand colors', async () => {
-      const colors = {
-        primary: '#0066CC', // Blue
-        success: '#00AA00', // Green
-        error: '#CC0000', // Red
-        text: '#333333',
-      };
+      const largeControls = Array.from({ length: 30 }, (_, i) => ({
+        id: 'CC' + (i + 1) + '.1',
+        name: 'Control ' + (i + 1),
+        status: 'PASS' as const,
+        evidence: 'Evidence for control ' + (i + 1),
+        severity: 'medium' as const,
+      }));
 
-      // TODO: Apply consistent colors
-      expect(true).toBe(true);
-    });
+      const largeData = makeMinimalData({
+        controls: largeControls,
+        summary: { total: 30, passed: 30, failed: 0, notApplicable: 0 },
+      });
+      const largeOutput = await generator.generate(largeData);
 
-    it('should embed custom logo', async () => {
-      // TODO: Logo in header/footer
-      expect(true).toBe(true);
-    });
-
-    it('should use professional fonts', async () => {
-      // TODO: Helvetica or similar sans-serif
-      expect(true).toBe(true);
-    });
-
-    it('should have consistent margins', async () => {
-      const margins = {
-        top: 72, // 1 inch
-        bottom: 72,
-        left: 72,
-        right: 72,
-      };
-
-      // TODO: Apply margins to all pages
-      expect(true).toBe(true);
-    });
-  });
-
-  describe('Data Visualization', () => {
-    it('should create pie chart for control status', async () => {
-      const data = {
-        passed: 45,
-        failed: 3,
-        notApplicable: 16,
-      };
-
-      // TODO: Generate pie chart
-      expect(true).toBe(true);
-    });
-
-    it('should create bar chart for framework comparison', async () => {
-      const frameworks = {
-        SOC2: { passed: 60, total: 64 },
-        GDPR: { passed: 8, total: 10 },
-        ISO27001: { passed: 100, total: 114 },
-      };
-
-      // TODO: Generate bar chart
-      expect(true).toBe(true);
-    });
-
-    it('should create tables for detailed results', async () => {
-      // TODO: Create formatted table with:
-      // | Control | Status | Evidence | Recommendations |
-      expect(true).toBe(true);
+      // More controls should produce a larger PDF
+      expect(largeOutput.length).toBeGreaterThan(smallOutput.length);
     });
   });
 
   describe('Content Generation', () => {
-    it('should format timestamps correctly', async () => {
-      const timestamp = '2024-01-15T10:30:00Z';
-
-      // TODO: Format as "January 15, 2024 at 10:30 AM UTC"
-      expect(true).toBe(true);
-    });
-
-    it('should handle long text with wrapping', async () => {
-      const longText = 'A'.repeat(1000);
-
-      // TODO: Wrap text at page width
-      expect(true).toBe(true);
-    });
-
-    it('should escape special characters', async () => {
-      const specialChars = '< > & " \' `';
-
-      // TODO: Properly escape for PDF
-      expect(true).toBe(true);
-    });
-
-    it('should handle empty data gracefully', async () => {
-      const emptyReport = {
+    it('should handle empty controls array', async () => {
+      const generator = new PDFGenerator();
+      const data = makeMinimalData({
         controls: [],
-        findings: [],
-      };
+        summary: { total: 0, passed: 0, failed: 0, notApplicable: 0 },
+        overallScore: 100,
+      });
 
-      // TODO: Show "No data available" message
-      expect(true).toBe(true);
-    });
-  });
-
-  describe('Accessibility', () => {
-    it('should embed document metadata', async () => {
-      const metadata = {
-        title: 'Compliance Autopilot Report',
-        author: 'Compliance Autopilot',
-        subject: 'Automated Compliance Evidence',
-        keywords: ['SOC2', 'GDPR', 'ISO27001', 'compliance'],
-      };
-
-      // TODO: Set PDF metadata
-      expect(true).toBe(true);
+      const output = await generator.generate(data);
+      expect(output).toBeInstanceOf(Uint8Array);
+      expect(output.length).toBeGreaterThan(0);
     });
 
-    it('should use semantic structure', async () => {
-      // TODO: Use headings, paragraphs, lists properly
-      expect(true).toBe(true);
-    });
-
-    it('should use high contrast colors', async () => {
-      // TODO: WCAG AA compliant contrast ratios
-      expect(true).toBe(true);
-    });
-  });
-
-  describe('Snapshots', () => {
-    it('should match snapshot for SOC2 report', async () => {
-      const soc2Data = {
-        framework: 'SOC2',
+    it('should handle controls with violations', async () => {
+      const generator = new PDFGenerator();
+      const data = makeMinimalData({
         controls: [
           {
-            control: 'CC1.1',
-            status: 'PASS',
-            evidence: { approvals: 2 },
+            id: 'CC1.1',
+            name: 'Code Review',
+            status: 'FAIL',
+            evidence: 'No reviews found',
+            severity: 'critical',
+            violations: [
+              {
+                file: 'src/main.ts',
+                line: 42,
+                code: 'const secret = "hardcoded";',
+                recommendation: 'Use environment variables',
+              },
+            ],
+            recommendations: ['Require PR reviews'],
           },
         ],
-      };
+        summary: { total: 1, passed: 0, failed: 1, notApplicable: 0 },
+        overallScore: 0,
+      });
 
-      // TODO: Snapshot test
-      // const pdf = await generatePDF(soc2Data);
-      // expect(pdf.toString('base64')).toMatchSnapshot();
-      expect(true).toBe(true);
+      const output = await generator.generate(data);
+      expect(output).toBeInstanceOf(Uint8Array);
+      expect(output.length).toBeGreaterThan(0);
     });
 
-    it('should match snapshot for GDPR report', async () => {
-      // TODO: GDPR snapshot test
-      expect(true).toBe(true);
+    it('should handle all three frameworks', async () => {
+      const generator = new PDFGenerator();
+
+      for (const framework of ['SOC2', 'GDPR', 'ISO27001'] as const) {
+        const data = makeMinimalData({ framework });
+        const output = await generator.generate(data);
+        expect(output).toBeInstanceOf(Uint8Array);
+        expect(output.length).toBeGreaterThan(0);
+      }
+    });
+
+    it('should produce different PDFs for different frameworks', async () => {
+      const generator = new PDFGenerator();
+
+      const soc2Output = await generator.generate(makeMinimalData({ framework: 'SOC2' }));
+      const gdprOutput = await generator.generate(makeMinimalData({ framework: 'GDPR' }));
+
+      // Different frameworks should produce different PDF sizes or content
+      // since they use different templates
+      const soc2Bytes = Array.from(soc2Output.slice(100, 200));
+      const gdprBytes = Array.from(gdprOutput.slice(100, 200));
+      expect(soc2Bytes).not.toEqual(gdprBytes);
+    });
+
+    it('should handle multiple frameworks in badges', async () => {
+      const generator = new PDFGenerator();
+      const data = makeMinimalData({
+        frameworks: ['SOC2', 'GDPR', 'ISO27001'],
+      });
+
+      const output = await generator.generate(data);
+      expect(output).toBeInstanceOf(Uint8Array);
+
+      // Multi-framework PDF should be at least as large as single-framework
+      const singleOutput = await generator.generate(makeMinimalData());
+      expect(output.length).toBeGreaterThanOrEqual(singleOutput.length);
     });
   });
 
-  describe('Error Handling', () => {
-    it('should handle font loading errors', async () => {
-      mockPDFDocument.embedFont.mockRejectedValue(new Error('Font not found'));
+  describe('Validation', () => {
+    it('should reject invalid framework', async () => {
+      const generator = new PDFGenerator();
+      const data = makeMinimalData({ framework: 'INVALID' as any });
 
-      // TODO: Fallback to default font
-      expect(true).toBe(true);
+      await expect(generator.generate(data)).rejects.toThrow('Invalid framework');
     });
 
-    it('should handle image loading errors', async () => {
-      mockPDFDocument.embedImage.mockRejectedValue(new Error('Image not found'));
+    it('should reject non-Date timestamp', async () => {
+      const generator = new PDFGenerator();
+      const data = makeMinimalData({ timestamp: 'not-a-date' as any });
 
-      // TODO: Skip image, continue generating
-      expect(true).toBe(true);
+      await expect(generator.generate(data)).rejects.toThrow('Invalid timestamp');
     });
 
-    it('should handle save errors', async () => {
-      mockPDFDocument.save.mockRejectedValue(new Error('Disk full'));
+    it('should reject missing repository name', async () => {
+      const generator = new PDFGenerator();
+      const data = makeMinimalData({ repositoryName: '' });
 
-      // TODO: Throw user-friendly error
-      expect(true).toBe(true);
+      await expect(generator.generate(data)).rejects.toThrow(
+        'Repository name and owner are required'
+      );
+    });
+
+    it('should reject score out of range', async () => {
+      const generator = new PDFGenerator();
+      const data = makeMinimalData({ overallScore: 150 });
+
+      await expect(generator.generate(data)).rejects.toThrow(
+        'Overall score must be a number between 0 and 100'
+      );
+    });
+
+    it('should reject non-array controls', async () => {
+      const generator = new PDFGenerator();
+      const data = makeMinimalData({ controls: 'not-an-array' as any });
+
+      await expect(generator.generate(data)).rejects.toThrow('Controls must be an array');
     });
   });
 
   describe('Performance', () => {
-    it('should generate report in <5 seconds', async () => {
+    it('should generate report in under 5 seconds', async () => {
+      const generator = new PDFGenerator();
+      const data = makeMinimalData();
+
       const startTime = Date.now();
-
-      // Simulate a short async operation to verify timing constraint
-      await new Promise((resolve) => setTimeout(resolve, 10));
-
+      await generator.generate(data);
       const duration = Date.now() - startTime;
+
       expect(duration).toBeLessThan(5000);
     });
 
-    it('should handle large reports', async () => {
-      const largeReport = {
-        controls: Array(200).fill({ status: 'PASS' }),
-      };
+    it('should handle large reports with 200 controls', async () => {
+      const generator = new PDFGenerator();
+      const controls = Array.from({ length: 200 }, (_, i) => ({
+        id: 'CTRL-' + (i + 1),
+        name: 'Control number ' + (i + 1),
+        status: 'PASS' as const,
+        evidence: 'Evidence gathered for control ' + (i + 1),
+        severity: 'medium' as const,
+      }));
 
-      // TODO: Should complete without OOM
-      expect(true).toBe(true);
+      const data = makeMinimalData({
+        controls,
+        summary: { total: 200, passed: 200, failed: 0, notApplicable: 0 },
+      });
+
+      const output = await generator.generate(data);
+      expect(output).toBeInstanceOf(Uint8Array);
+      expect(output.length).toBeGreaterThan(0);
     });
   });
 
   describe('File Output', () => {
-    it('should return valid PDF buffer', async () => {
-      // TODO: Verify PDF magic bytes (%PDF-)
-      expect(true).toBe(true);
+    it('should return valid PDF buffer with correct magic bytes', async () => {
+      const generator = new PDFGenerator();
+      const data = makeMinimalData();
+
+      const output = await generator.generate(data);
+
+      // %PDF- in ASCII is [37, 80, 68, 70, 45]
+      expect(output[0]).toBe(37);
+      expect(output[1]).toBe(80);
+      expect(output[2]).toBe(68);
+      expect(output[3]).toBe(70);
+      expect(output[4]).toBe(45);
     });
 
-    it('should set correct file size', async () => {
-      // TODO: File should be <5MB
-      expect(true).toBe(true);
+    it('should produce a file under 5MB', async () => {
+      const generator = new PDFGenerator();
+      const data = makeMinimalData();
+
+      const output = await generator.generate(data);
+
+      const fiveMB = 5 * 1024 * 1024;
+      expect(output.length).toBeLessThan(fiveMB);
     });
 
-    it('should be openable in PDF readers', async () => {
-      // TODO: Manual verification test
-      expect(true).toBe(true);
+    it('should produce a valid PDF ending with %%EOF', async () => {
+      const generator = new PDFGenerator();
+      const data = makeMinimalData();
+
+      const output = await generator.generate(data);
+
+      // A valid PDF should end with %%EOF
+      const tail = new TextDecoder('latin1').decode(output.slice(-10));
+      expect(tail).toContain('%%EOF');
+    });
+  });
+
+  describe('Error Handling', () => {
+    it('should handle missing summary', async () => {
+      const generator = new PDFGenerator();
+      const data = makeMinimalData({ summary: null as any });
+
+      await expect(generator.generate(data)).rejects.toThrow('Summary is required');
     });
   });
 });

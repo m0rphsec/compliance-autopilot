@@ -1,127 +1,247 @@
 /**
  * Unit tests for logger utility
- * Tests structured logging for GitHub Actions
+ * Tests structured logging for GitHub Actions via @actions/core
  */
 
-describe('Logger', () => {
-  let consoleLogSpy: ReturnType<typeof jest.spyOn>;
-  let consoleErrorSpy: ReturnType<typeof jest.spyOn>;
-  let consoleWarnSpy: ReturnType<typeof jest.spyOn>;
+import { describe, it, expect, jest, beforeEach } from "@jest/globals";
+import * as core from "@actions/core";
+import { Logger, LogLevel, createLogger } from "../../../src/utils/logger";
 
+// Mock @actions/core
+jest.mock("@actions/core", () => ({
+  debug: jest.fn(),
+  info: jest.fn(),
+  warning: jest.fn(),
+  error: jest.fn(),
+  startGroup: jest.fn(),
+  endGroup: jest.fn(),
+}));
+
+const mockedCore = core as jest.Mocked<typeof core>;
+
+describe("Logger", () => {
   beforeEach(() => {
-    consoleLogSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
-    consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
-    consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    jest.clearAllMocks();
   });
 
-  afterEach(() => {
-    consoleLogSpy.mockRestore();
-    consoleErrorSpy.mockRestore();
-    consoleWarnSpy.mockRestore();
-  });
-
-  describe('Log Levels', () => {
-    it('should support info level', () => {
-      expect(true).toBe(true);
+  describe("Construction", () => {
+    it("should create a logger with default config", () => {
+      const logger = new Logger();
+      expect(logger).toBeDefined();
+      expect(logger.info).toBeDefined();
+      expect(logger.debug).toBeDefined();
+      expect(logger.warn).toBeDefined();
+      expect(logger.error).toBeDefined();
     });
 
-    it('should support error level', () => {
-      expect(true).toBe(true);
+    it("should create a logger with custom log level", () => {
+      const logger = new Logger({ level: LogLevel.DEBUG });
+      logger.debug("debug message");
+      expect(mockedCore.debug).toHaveBeenCalledWith("debug message");
     });
 
-    it('should support warn level', () => {
-      expect(true).toBe(true);
-    });
-
-    it('should support debug level', () => {
-      expect(true).toBe(true);
-    });
-  });
-
-  describe('GitHub Actions Annotations', () => {
-    it('should format errors as annotations', () => {
-      expect(true).toBe(true);
-    });
-
-    it('should format warnings as annotations', () => {
-      expect(true).toBe(true);
-    });
-
-    it('should format notices as annotations', () => {
-      expect(true).toBe(true);
+    it("should create a logger with default metadata", () => {
+      const logger = new Logger({
+        defaultMetadata: { component: "scanner" },
+      });
+      logger.info("test");
+      expect(mockedCore.info).toHaveBeenCalledWith(
+        expect.stringContaining("scanner")
+      );
     });
   });
 
-  describe('Structured Logging', () => {
-    it('should log JSON objects', () => {
-      const data = { key: 'value' };
-      expect(data).toBeDefined();
-      expect(true).toBe(true);
+  describe("Log Levels", () => {
+    it("should log info messages via core.info", () => {
+      const logger = new Logger({ level: LogLevel.INFO });
+      logger.info("hello");
+      expect(mockedCore.info).toHaveBeenCalledWith("hello");
     });
 
-    it('should include timestamp', () => {
-      expect(true).toBe(true);
+    it("should log error messages via core.error", () => {
+      const logger = new Logger({ level: LogLevel.INFO });
+      logger.error("bad thing");
+      expect(mockedCore.error).toHaveBeenCalledWith("bad thing");
     });
 
-    it('should include log level', () => {
-      expect(true).toBe(true);
-    });
-  });
-
-  describe('Security', () => {
-    it('should redact API keys', () => {
-      const message = 'API key: ghp_secret123';
-      expect(message).toContain('ghp_');
-      expect(true).toBe(true);
+    it("should log warn messages via core.warning", () => {
+      const logger = new Logger({ level: LogLevel.INFO });
+      logger.warn("watch out");
+      expect(mockedCore.warning).toHaveBeenCalledWith("watch out");
     });
 
-    it('should redact tokens', () => {
-      const message = 'Token: sk_test_1234567890';
-      expect(message).toContain('sk_test');
-      expect(true).toBe(true);
-    });
-
-    it('should redact email addresses', () => {
-      const message = 'User: admin@company.com';
-      expect(message).toContain('@');
-      expect(true).toBe(true);
+    it("should log debug messages via core.debug", () => {
+      const logger = new Logger({ level: LogLevel.DEBUG });
+      logger.debug("details");
+      expect(mockedCore.debug).toHaveBeenCalledWith("details");
     });
   });
 
-  describe('Error Logging', () => {
-    it('should log error stack traces', () => {
-      const error = new Error('Test error');
-      expect(error.stack).toBeDefined();
-      expect(true).toBe(true);
+  describe("Log Level Filtering", () => {
+    it("should suppress debug when level is INFO", () => {
+      const logger = new Logger({ level: LogLevel.INFO });
+      logger.debug("hidden");
+      expect(mockedCore.debug).not.toHaveBeenCalled();
     });
 
-    it('should log error codes', () => {
-      const error = { code: 'ECONNREFUSED', message: 'Connection refused' };
-      expect(error.code).toBe('ECONNREFUSED');
-      expect(true).toBe(true);
+    it("should suppress debug and info when level is WARN", () => {
+      const logger = new Logger({ level: LogLevel.WARN });
+      logger.debug("hidden");
+      logger.info("hidden");
+      expect(mockedCore.debug).not.toHaveBeenCalled();
+      expect(mockedCore.info).not.toHaveBeenCalled();
+    });
+
+    it("should only allow error when level is ERROR", () => {
+      const logger = new Logger({ level: LogLevel.ERROR });
+      logger.debug("hidden");
+      logger.info("hidden");
+      logger.warn("hidden");
+      logger.error("visible");
+      expect(mockedCore.debug).not.toHaveBeenCalled();
+      expect(mockedCore.info).not.toHaveBeenCalled();
+      expect(mockedCore.warning).not.toHaveBeenCalled();
+      expect(mockedCore.error).toHaveBeenCalledWith("visible");
+    });
+
+    it("should allow all levels when level is DEBUG", () => {
+      const logger = new Logger({ level: LogLevel.DEBUG });
+      logger.debug("d");
+      logger.info("i");
+      logger.warn("w");
+      logger.error("e");
+      expect(mockedCore.debug).toHaveBeenCalled();
+      expect(mockedCore.info).toHaveBeenCalled();
+      expect(mockedCore.warning).toHaveBeenCalled();
+      expect(mockedCore.error).toHaveBeenCalled();
     });
   });
 
-  describe('Performance', () => {
-    it('should log quickly', () => {
-      const startTime = Date.now();
+  describe("Metadata formatting", () => {
+    it("should append metadata as JSON when provided", () => {
+      const logger = new Logger({ level: LogLevel.INFO });
+      logger.info("test", { component: "scanner", operation: "scan" });
+      const callArg = (mockedCore.info as jest.Mock).mock.calls[0][0] as string;
+      expect(callArg).toContain("scanner");
+      expect(callArg).toContain("scan");
+    });
 
-      for (let i = 0; i < 1000; i++) {
-        // Simulated logging
-      }
+    it("should output plain message when no metadata", () => {
+      const logger = new Logger({ level: LogLevel.INFO });
+      logger.info("plain message");
+      expect(mockedCore.info).toHaveBeenCalledWith("plain message");
+    });
 
-      const duration = Date.now() - startTime;
-      expect(duration).toBeLessThan(100);
+    it("should merge default metadata with call metadata", () => {
+      const logger = new Logger({
+        level: LogLevel.INFO,
+        defaultMetadata: { component: "api" },
+      });
+      logger.info("test", { operation: "fetch" });
+      const callArg = (mockedCore.info as jest.Mock).mock.calls[0][0] as string;
+      expect(callArg).toContain("api");
+      expect(callArg).toContain("fetch");
     });
   });
 
-  describe('Log Groups', () => {
-    it('should support collapsible groups', () => {
-      expect(true).toBe(true);
+  describe("Error logging with Error object", () => {
+    it("should include error details in metadata", () => {
+      const logger = new Logger({ level: LogLevel.INFO });
+      const err = new Error("boom");
+      logger.error("operation failed", err);
+      const callArg = (mockedCore.error as jest.Mock).mock.calls[0][0] as string;
+      expect(callArg).toContain("operation failed");
+      expect(callArg).toContain("boom");
     });
 
-    it('should nest groups', () => {
-      expect(true).toBe(true);
+    it("should work without an Error object", () => {
+      const logger = new Logger({ level: LogLevel.INFO });
+      logger.error("simple error");
+      expect(mockedCore.error).toHaveBeenCalledWith("simple error");
+    });
+  });
+
+  describe("Child logger", () => {
+    it("should create child with merged metadata", () => {
+      const parent = new Logger({
+        level: LogLevel.INFO,
+        defaultMetadata: { component: "parent" },
+      });
+      const child = parent.child({ operation: "child-op" });
+      child.info("from child");
+      const callArg = (mockedCore.info as jest.Mock).mock.calls[0][0] as string;
+      expect(callArg).toContain("parent");
+      expect(callArg).toContain("child-op");
+    });
+  });
+
+  describe("Log Groups", () => {
+    it("should call core.startGroup", () => {
+      const logger = new Logger();
+      logger.startGroup("My Group");
+      expect(mockedCore.startGroup).toHaveBeenCalledWith("My Group");
+    });
+
+    it("should call core.endGroup", () => {
+      const logger = new Logger();
+      logger.endGroup();
+      expect(mockedCore.endGroup).toHaveBeenCalled();
+    });
+  });
+
+  describe("Timing", () => {
+    it("should log timing information", () => {
+      const logger = new Logger({ level: LogLevel.INFO });
+      logger.timing("fetchData", 1234);
+      const callArg = (mockedCore.info as jest.Mock).mock.calls[0][0] as string;
+      expect(callArg).toContain("Operation completed: fetchData");
+      expect(callArg).toContain("1234");
+    });
+  });
+
+  describe("Measure", () => {
+    it("should measure async operation and log timing", async () => {
+      const logger = new Logger({ level: LogLevel.DEBUG });
+      const result = await logger.measure("testOp", async () => {
+        return 42;
+      });
+      expect(result).toBe(42);
+      expect(mockedCore.debug).toHaveBeenCalledWith(
+        expect.stringContaining("Starting operation: testOp")
+      );
+      expect(mockedCore.info).toHaveBeenCalledWith(
+        expect.stringContaining("Operation completed: testOp")
+      );
+    });
+
+    it("should log error and rethrow on failure", async () => {
+      const logger = new Logger({ level: LogLevel.DEBUG });
+      await expect(
+        logger.measure("failOp", async () => {
+          throw new Error("boom");
+        })
+      ).rejects.toThrow("boom");
+      expect(mockedCore.error).toHaveBeenCalledWith(
+        expect.stringContaining("Operation failed: failOp")
+      );
+    });
+  });
+
+  describe("createLogger helper", () => {
+    it("should create a logger with component metadata", () => {
+      const log = createLogger("evidence-collector");
+      log.info("collecting");
+      const callArg = (mockedCore.info as jest.Mock).mock.calls[0][0] as string;
+      expect(callArg).toContain("evidence-collector");
+    });
+  });
+
+  describe("LogLevel enum", () => {
+    it("should have the expected values", () => {
+      expect(LogLevel.DEBUG).toBe("debug");
+      expect(LogLevel.INFO).toBe("info");
+      expect(LogLevel.WARN).toBe("warn");
+      expect(LogLevel.ERROR).toBe("error");
     });
   });
 });

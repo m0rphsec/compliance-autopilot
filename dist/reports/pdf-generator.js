@@ -346,8 +346,8 @@ class PDFGenerator {
     async generateRecommendations(data) {
         this.addPage();
         this.drawHeading1('Recommendations');
-        const failedControls = data.controls.filter((c) => c.status === 'FAIL');
-        if (failedControls.length === 0) {
+        const controlsWithRecs = data.controls.filter((c) => c.status !== 'PASS');
+        if (controlsWithRecs.length === 0) {
             this.drawText('No recommendations. All controls passed!', {
                 font: this.fonts.regular,
                 size: FONT_SIZES.body,
@@ -357,10 +357,10 @@ class PDFGenerator {
         }
         // Group by severity
         const bySeverity = {
-            critical: failedControls.filter((c) => c.severity === 'critical'),
-            high: failedControls.filter((c) => c.severity === 'high'),
-            medium: failedControls.filter((c) => c.severity === 'medium'),
-            low: failedControls.filter((c) => c.severity === 'low'),
+            critical: controlsWithRecs.filter((c) => c.severity === 'critical'),
+            high: controlsWithRecs.filter((c) => c.severity === 'high'),
+            medium: controlsWithRecs.filter((c) => c.severity === 'medium'),
+            low: controlsWithRecs.filter((c) => c.severity === 'low'),
         };
         for (const [severity, controls] of Object.entries(bySeverity)) {
             if (controls.length === 0)

@@ -103,7 +103,7 @@ class JSONFormatter {
                         },
                         status: {
                             type: 'string',
-                            enum: ['PASS', 'FAIL'],
+                            enum: ['PASS', 'PARTIAL', 'FAIL'],
                             description: 'Overall compliance status',
                         },
                         grade: {
@@ -243,7 +243,8 @@ class JSONFormatter {
      */
     formatData(data) {
         const passRate = data.summary.total > 0 ? (data.summary.passed / data.summary.total) * 100 : 0;
-        const status = data.summary.failed === 0 ? 'PASS' : 'FAIL';
+        const hasCriticalFail = data.controls.some((c) => c.status === 'FAIL' && c.severity === 'critical');
+        const status = data.summary.failed === 0 ? 'PASS' : hasCriticalFail || passRate < 70 ? 'FAIL' : 'PARTIAL';
         const grade = this.calculateGrade(passRate);
         return {
             metadata: {

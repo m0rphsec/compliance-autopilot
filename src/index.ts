@@ -351,7 +351,7 @@ async function collectEvidence(
           const gdprResult = await gdprCollector.scanRepository(sourceFiles);
 
           // Build proper GDPR control evaluations from scan results
-          const gdprEvaluations = buildGDPREvaluations(gdprResult);
+          const gdprEvaluations = buildGDPREvaluations(gdprResult, sourceFiles);
           const gdprPassed = gdprEvaluations.filter((e) => e.result === ControlResult.PASS).length;
           const gdprFailed = gdprEvaluations.filter((e) => e.result === ControlResult.FAIL).length;
           const gdprNA = gdprEvaluations.filter(
@@ -443,7 +443,7 @@ async function collectEvidence(
  * Build proper GDPR ControlEvaluation entries from scan results.
  * Maps GDPR collector findings to specific GDPR articles.
  */
-function buildGDPREvaluations(result: GDPRCollectorResult): ControlEvaluation[] {
+function buildGDPREvaluations(result: GDPRCollectorResult, sourceFiles: Array<{ code: string; path: string }>): ControlEvaluation[] {
   const now = new Date().toISOString();
   const noPII = result.summary.files_with_pii === 0;
 
@@ -492,7 +492,7 @@ function buildGDPREvaluations(result: GDPRCollectorResult): ControlEvaluation[] 
   const deletionViolations = violationsByType['deletion'] || [];
   const otherViolations = violationsByType['other'] || [];
 
-  return [
+  const evaluations: ControlEvaluation[] = [
     makeEval(
       'GDPR-5.1f',
       'Data Security - Encryption in Transit (Art. 5(1)(f))',
@@ -564,6 +564,102 @@ function buildGDPREvaluations(result: GDPRCollectorResult): ControlEvaluation[] 
       otherViolations.map((v) => `${v.file}: ${v.description}`)
     ),
   ];
+
+  // GDPR Art. 25 - Data Protection by Design
+  const privacySignals: string[] = [];
+
+  // 1. Check for privacy policy files among scanned source files
+  const privacyPolicyPattern = /privacy[-_.]?(policy|notice)?\.(md|txt|html?)/i;
+  for (const file of sourceFiles) {
+    const basename = file.path.split('/').pop() || '';
+    if (privacyPolicyPattern.test(basename)) {
+      privacySignals.push(`Privacy policy file found: ${file.path}`);
+      break;
+    }
+  }
+
+  // Also check if any file contains substantial privacy policy text
+  if (privacySignals.length === 0) {
+    for (const file of sourceFiles) {
+      if (
+        /privacy\s+policy/i.test(file.code) &&
+        /personal\s+(data|information)/i.test(file.code) &&
+        file.code.length > 500
+      ) {
+        privacySignals.push(`Privacy policy content detected in: ${file.path}`);
+        break;
+      }
+    }
+  }
+
+  // 2. Check for data minimization patterns in code
+  const minimizationPatterns = [
+    /\.select\s*\(/,                         // ORM .select() explicit field selection
+    /SELECT\s+(?!\*)\w+\s*,/i,              // SQL SELECT with explicit columns (not SELECT *)
+    /\.pick\s*\(/,                           // Zod/lodash .pick()
+    /\.omit\s*\(/,                           // Zod/lodash .omit()
+  ];
+  let foundMinimization = false;
+  for (const file of sourceFiles) {
+    for (const pattern of minimizationPatterns) {
+      if (pattern.test(file.code)) {
+        privacySignals.push(`Data minimization pattern found in: ${file.path}`);
+        foundMinimization = true;
+        break;
+      }
+    }
+    if (foundMinimization) break;
+  }
+
+  // 3. Check for privacy-aware code patterns (annotations, comments, function names)
+  const privacyCodePatterns = [
+    /@privacy/i,
+    /gdpr[-_]?compliant/i,
+    /anonymize/i,
+    /pseudonymize/i,
+    /data[-_]?minimization/i,
+    /privacy[-_]?by[-_]?design/i,
+    /data[-_]?protection/i,
+  ];
+  let foundPrivacyCode = false;
+  for (const file of sourceFiles) {
+    for (const pattern of privacyCodePatterns) {
+      if (pattern.test(file.code)) {
+        privacySignals.push(`Privacy-aware code pattern found in: ${file.path}`);
+        foundPrivacyCode = true;
+        break;
+      }
+    }
+    if (foundPrivacyCode) break;
+  }
+
+  const dpbdScore = privacySignals.length;
+  const dpbdPass = dpbdScore >= 2;
+  const dpbdPartial = dpbdScore >= 1;
+
+  evaluations.push({
+    controlId: 'GDPR-Art25',
+    controlName: 'Data Protection by Design (Art. 25)',
+    framework: CFEnum.GDPR,
+    result: dpbdPass ? ControlResult.PASS : dpbdPartial ? ControlResult.PARTIAL : ControlResult.FAIL,
+    evidence: [],
+    evaluatedAt: now,
+    notes: dpbdPass
+      ? `Privacy-by-design artifacts found: ${privacySignals.join('; ')}`
+      : dpbdPartial
+        ? `Limited privacy-by-design signals: ${privacySignals.join('; ')}`
+        : 'No privacy-by-design signals detected in scanned files.',
+    severity: dpbdPass ? undefined : Severity.HIGH,
+    findings: dpbdScore < 2
+      ? [
+          'Add PRIVACY.md or privacy policy documentation',
+          'Use data minimization patterns (explicit field selection)',
+          'Add privacy-aware code annotations',
+        ]
+      : [],
+  });
+
+  return evaluations;
 }
 
 /**
@@ -668,13 +764,8 @@ async function generateReports(
           status: mapControlStatus(ctrl.result || ctrl.status),
           evidence: ctrl.notes || ctrl.evidence || 'Evidence collected',
           severity: (ctrl.severity || 'medium') as 'critical' | 'high' | 'medium' | 'low',
-          violations:
-            ctrl.findings?.map((f: string, i: number) => ({
-              file: 'N/A',
-              line: i + 1,
-              code: f,
-              recommendation: f,
-            })) || [],
+          violations: [],
+          recommendations: ctrl.findings || [],
         }))
       ),
       summary: {

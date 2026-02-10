@@ -248,4 +248,330 @@ describe('ISO27001Collector', () => {
       expect(report.summary.passedControls).toBeGreaterThan(0);
     }, 10000);
   });
+
+  describe('A.9.4.1 - Information Access Restriction', () => {
+    it('should PASS when branch protection exists', async () => {
+      mockOctokitInstance = buildMockOctokit();
+      mockOctokitInstance.repos.getBranchProtection.mockResolvedValue({
+        data: {
+          enforce_admins: { enabled: true },
+          required_pull_request_reviews: {
+            required_approving_review_count: 2,
+            require_code_owner_reviews: true,
+          },
+        },
+      });
+      (Octokit as unknown as jest.Mock).mockImplementation(() => mockOctokitInstance);
+
+      const collector = new ISO27001Collector(baseConfig);
+      const report = await collector.collect();
+      const ctrl = report.evaluations.find((e) => e.controlId === 'A.9.4.1');
+
+      expect(ctrl).toBeDefined();
+      expect(ctrl!.result).toBe(ControlResult.PASS);
+      expect(ctrl!.notes).toContain('Branch protection is enabled');
+    });
+
+    it('should FAIL when no branch protection exists', async () => {
+      mockOctokitInstance = buildMockOctokit();
+      mockOctokitInstance.repos.getBranchProtection.mockRejectedValue({ status: 404 });
+      (Octokit as unknown as jest.Mock).mockImplementation(() => mockOctokitInstance);
+
+      const collector = new ISO27001Collector(baseConfig);
+      const report = await collector.collect();
+      const ctrl = report.evaluations.find((e) => e.controlId === 'A.9.4.1');
+
+      expect(ctrl).toBeDefined();
+      expect(ctrl!.result).toBe(ControlResult.FAIL);
+      expect(ctrl!.notes).toContain('No branch protection');
+    });
+  });
+
+  describe('A.12.1.2 - Change Management', () => {
+    it('should PASS with 80%+ review approval rate', async () => {
+      mockOctokitInstance = buildMockOctokit();
+      const mergedPRs = Array.from({ length: 5 }, (_, i) => ({
+        number: i + 1,
+        merged_at: '2025-01-15T00:00:00Z',
+      }));
+      mockOctokitInstance.pulls.list.mockResolvedValue({ data: mergedPRs });
+      mockOctokitInstance.pulls.listReviews.mockResolvedValue({
+        data: [{ state: 'APPROVED' }],
+      });
+      (Octokit as unknown as jest.Mock).mockImplementation(() => mockOctokitInstance);
+
+      const collector = new ISO27001Collector(baseConfig);
+      const report = await collector.collect();
+      const ctrl = report.evaluations.find((e) => e.controlId === 'A.12.1.2');
+
+      expect(ctrl).toBeDefined();
+      expect(ctrl!.result).toBe(ControlResult.PASS);
+      expect(ctrl!.notes).toContain('100%');
+    });
+
+    it('should FAIL with no merged PRs', async () => {
+      mockOctokitInstance = buildMockOctokit();
+      mockOctokitInstance.pulls.list.mockResolvedValue({ data: [] });
+      (Octokit as unknown as jest.Mock).mockImplementation(() => mockOctokitInstance);
+
+      const collector = new ISO27001Collector(baseConfig);
+      const report = await collector.collect();
+      const ctrl = report.evaluations.find((e) => e.controlId === 'A.12.1.2');
+
+      expect(ctrl).toBeDefined();
+      expect(ctrl!.result).toBe(ControlResult.FAIL);
+      expect(ctrl!.notes).toContain('0%');
+    });
+  });
+
+  describe('A.12.6.1 - Vulnerability Management', () => {
+    it('should PASS with dependabot scanning active', async () => {
+      mockOctokitInstance = buildMockOctokit();
+      mockOctokitInstance.rest.dependabot.listAlertsForRepo.mockResolvedValue({
+        data: [{ severity: 'low', state: 'fixed' }],
+      });
+      (Octokit as unknown as jest.Mock).mockImplementation(() => mockOctokitInstance);
+
+      const collector = new ISO27001Collector(baseConfig);
+      const report = await collector.collect();
+      const ctrl = report.evaluations.find((e) => e.controlId === 'A.12.6.1');
+
+      expect(ctrl).toBeDefined();
+      expect(ctrl!.result).toBe(ControlResult.PASS);
+      expect(ctrl!.notes).toContain('Vulnerability management is active');
+    });
+
+    it('should FAIL with no scanning tools detected', async () => {
+      mockOctokitInstance = buildMockOctokit();
+      mockOctokitInstance.rest.dependabot.listAlertsForRepo.mockRejectedValue({ status: 403 });
+      mockOctokitInstance.actions.listRepoWorkflows.mockResolvedValue({
+        data: { total_count: 0, workflows: [] },
+      });
+      (Octokit as unknown as jest.Mock).mockImplementation(() => mockOctokitInstance);
+
+      const collector = new ISO27001Collector(baseConfig);
+      const report = await collector.collect();
+      const ctrl = report.evaluations.find((e) => e.controlId === 'A.12.6.1');
+
+      expect(ctrl).toBeDefined();
+      expect(ctrl!.result).toBe(ControlResult.FAIL);
+      expect(ctrl!.notes).toContain('No vulnerability scanning');
+    });
+  });
+
+  describe('A.14.2.2 - System Change Control', () => {
+    it('should PASS with required reviews >= 1', async () => {
+      mockOctokitInstance = buildMockOctokit();
+      mockOctokitInstance.repos.getBranchProtection.mockResolvedValue({
+        data: {
+          required_pull_request_reviews: {
+            required_approving_review_count: 2,
+            dismiss_stale_reviews: true,
+          },
+        },
+      });
+      (Octokit as unknown as jest.Mock).mockImplementation(() => mockOctokitInstance);
+
+      const collector = new ISO27001Collector(baseConfig);
+      const report = await collector.collect();
+      const ctrl = report.evaluations.find((e) => e.controlId === 'A.14.2.2');
+
+      expect(ctrl).toBeDefined();
+      expect(ctrl!.result).toBe(ControlResult.PASS);
+      expect(ctrl!.notes).toContain('2 approving review(s) required');
+    });
+
+    it('should FAIL without required reviews', async () => {
+      mockOctokitInstance = buildMockOctokit();
+      mockOctokitInstance.repos.getBranchProtection.mockResolvedValue({
+        data: {
+          enforce_admins: { enabled: true },
+        },
+      });
+      (Octokit as unknown as jest.Mock).mockImplementation(() => mockOctokitInstance);
+
+      const collector = new ISO27001Collector(baseConfig);
+      const report = await collector.collect();
+      const ctrl = report.evaluations.find((e) => e.controlId === 'A.14.2.2');
+
+      expect(ctrl).toBeDefined();
+      expect(ctrl!.result).toBe(ControlResult.FAIL);
+      expect(ctrl!.notes).toContain('No review requirements');
+    });
+  });
+
+  describe('A.14.2.5 - Secure System Engineering', () => {
+    it('should PASS when security policy file exists', async () => {
+      mockOctokitInstance = buildMockOctokit();
+      mockOctokitInstance.repos.getContent.mockImplementation(({ path }: { path: string }) => {
+        if (path === 'SECURITY.md') {
+          return Promise.resolve({
+            data: { content: Buffer.from('policy').toString('base64'), size: 6 },
+          });
+        }
+        return Promise.reject({ status: 404 });
+      });
+      (Octokit as unknown as jest.Mock).mockImplementation(() => mockOctokitInstance);
+
+      const collector = new ISO27001Collector(baseConfig);
+      const report = await collector.collect();
+      const ctrl = report.evaluations.find((e) => e.controlId === 'A.14.2.5');
+
+      expect(ctrl).toBeDefined();
+      expect(ctrl!.result).toBe(ControlResult.PASS);
+      expect(ctrl!.notes).toContain('SECURITY.md');
+    });
+
+    it('should return PARTIAL when no security policy exists', async () => {
+      mockOctokitInstance = buildMockOctokit();
+      mockOctokitInstance.repos.getContent.mockRejectedValue({ status: 404 });
+      (Octokit as unknown as jest.Mock).mockImplementation(() => mockOctokitInstance);
+
+      const collector = new ISO27001Collector(baseConfig);
+      const report = await collector.collect();
+      const ctrl = report.evaluations.find((e) => e.controlId === 'A.14.2.5');
+
+      expect(ctrl).toBeDefined();
+      expect(ctrl!.result).toBe(ControlResult.PARTIAL);
+      expect(ctrl!.notes).toContain('No SECURITY.md');
+    });
+  });
+
+  describe('A.14.2.8 - System Security Testing', () => {
+    it('should PASS with test workflows present', async () => {
+      mockOctokitInstance = buildMockOctokit();
+      mockOctokitInstance.actions.listRepoWorkflows.mockResolvedValue({
+        data: {
+          total_count: 2,
+          workflows: [
+            { name: 'CI Tests' },
+            { name: 'Build' },
+          ],
+        },
+      });
+      (Octokit as unknown as jest.Mock).mockImplementation(() => mockOctokitInstance);
+
+      const collector = new ISO27001Collector(baseConfig);
+      const report = await collector.collect();
+      const ctrl = report.evaluations.find((e) => e.controlId === 'A.14.2.8');
+
+      expect(ctrl).toBeDefined();
+      expect(ctrl!.result).toBe(ControlResult.PASS);
+      expect(ctrl!.notes).toContain('2 test/CI workflow(s) found');
+    });
+
+    it('should FAIL with no test workflows', async () => {
+      mockOctokitInstance = buildMockOctokit();
+      mockOctokitInstance.actions.listRepoWorkflows.mockResolvedValue({
+        data: { total_count: 0, workflows: [] },
+      });
+      (Octokit as unknown as jest.Mock).mockImplementation(() => mockOctokitInstance);
+
+      const collector = new ISO27001Collector(baseConfig);
+      const report = await collector.collect();
+      const ctrl = report.evaluations.find((e) => e.controlId === 'A.14.2.8');
+
+      expect(ctrl).toBeDefined();
+      expect(ctrl!.result).toBe(ControlResult.FAIL);
+      expect(ctrl!.notes).toContain('No testing workflows');
+    });
+  });
+
+  describe('A.16.1.2 - Reporting Security Events', () => {
+    it('should PASS with security issue template present', async () => {
+      mockOctokitInstance = buildMockOctokit();
+      mockOctokitInstance.repos.getContent.mockImplementation(({ path }: { path: string }) => {
+        if (path === '.github/ISSUE_TEMPLATE/security.md') {
+          return Promise.resolve({
+            data: { content: Buffer.from('template').toString('base64'), size: 8 },
+          });
+        }
+        return Promise.reject({ status: 404 });
+      });
+      (Octokit as unknown as jest.Mock).mockImplementation(() => mockOctokitInstance);
+
+      const collector = new ISO27001Collector(baseConfig);
+      const report = await collector.collect();
+      const ctrl = report.evaluations.find((e) => e.controlId === 'A.16.1.2');
+
+      expect(ctrl).toBeDefined();
+      expect(ctrl!.result).toBe(ControlResult.PASS);
+      expect(ctrl!.notes).toContain('reporting mechanisms are in place');
+    });
+
+    it('should return PARTIAL with no template and no security advisories', async () => {
+      mockOctokitInstance = buildMockOctokit();
+      mockOctokitInstance.repos.getContent.mockRejectedValue({ status: 404 });
+      mockOctokitInstance.repos.get.mockResolvedValue({
+        data: { security_and_analysis: null },
+      });
+      (Octokit as unknown as jest.Mock).mockImplementation(() => mockOctokitInstance);
+
+      const collector = new ISO27001Collector(baseConfig);
+      const report = await collector.collect();
+      const ctrl = report.evaluations.find((e) => e.controlId === 'A.16.1.2');
+
+      expect(ctrl).toBeDefined();
+      expect(ctrl!.result).toBe(ControlResult.PARTIAL);
+      expect(ctrl!.notes).toContain('Consider adding security issue templates');
+    });
+  });
+
+  describe('A.16.1.5 - Response to Information Security Incidents', () => {
+    it('should PASS with security issue closure rate >= 70%', async () => {
+      mockOctokitInstance = buildMockOctokit();
+      const closedIssues = Array.from({ length: 8 }, (_, i) => ({
+        number: i + 1,
+        state: 'closed',
+        title: `Security issue ${i + 1}`,
+        pull_request: undefined,
+      }));
+      const openIssues = Array.from({ length: 2 }, (_, i) => ({
+        number: i + 9,
+        state: 'open',
+        title: `Security issue ${i + 9}`,
+        pull_request: undefined,
+      }));
+      mockOctokitInstance.issues.listForRepo.mockResolvedValue({
+        data: [...closedIssues, ...openIssues],
+      });
+      (Octokit as unknown as jest.Mock).mockImplementation(() => mockOctokitInstance);
+
+      const collector = new ISO27001Collector(baseConfig);
+      const report = await collector.collect();
+      const ctrl = report.evaluations.find((e) => e.controlId === 'A.16.1.5');
+
+      expect(ctrl).toBeDefined();
+      expect(ctrl!.result).toBe(ControlResult.PASS);
+      expect(ctrl!.notes).toContain('80%');
+    });
+
+    it('should return PARTIAL with low closure rate', async () => {
+      mockOctokitInstance = buildMockOctokit();
+      const closedIssues = Array.from({ length: 2 }, (_, i) => ({
+        number: i + 1,
+        state: 'closed',
+        title: `Security issue ${i + 1}`,
+        pull_request: undefined,
+      }));
+      const openIssues = Array.from({ length: 8 }, (_, i) => ({
+        number: i + 3,
+        state: 'open',
+        title: `Security issue ${i + 3}`,
+        pull_request: undefined,
+      }));
+      mockOctokitInstance.issues.listForRepo.mockResolvedValue({
+        data: [...closedIssues, ...openIssues],
+      });
+      (Octokit as unknown as jest.Mock).mockImplementation(() => mockOctokitInstance);
+
+      const collector = new ISO27001Collector(baseConfig);
+      const report = await collector.collect();
+      const ctrl = report.evaluations.find((e) => e.controlId === 'A.16.1.5');
+
+      expect(ctrl).toBeDefined();
+      expect(ctrl!.result).toBe(ControlResult.PARTIAL);
+      expect(ctrl!.notes).toContain('20%');
+    });
+  });
 });

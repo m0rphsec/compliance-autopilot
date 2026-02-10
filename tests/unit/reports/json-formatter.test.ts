@@ -3,239 +3,376 @@
  * Tests JSON evidence structure and validation
  */
 
-import { describe, it, expect } from '@jest/globals';
+import { describe, it, expect, beforeEach } from '@jest/globals';
+import { JSONFormatter } from '../../../src/reports/json-formatter';
+import { ComplianceData } from '../../../src/reports/pdf-generator';
+
+function makeMinimalData(overrides?: Partial<ComplianceData>): ComplianceData {
+  return {
+    framework: 'SOC2',
+    timestamp: new Date('2025-01-15T10:30:00Z'),
+    repositoryName: 'test-repo',
+    repositoryOwner: 'test-owner',
+    overallScore: 85.5,
+    controls: [
+      {
+        id: 'CC1.1',
+        name: 'Code Review Process',
+        status: 'PASS',
+        evidence: 'All PRs require approval',
+        severity: 'high',
+      },
+    ],
+    summary: {
+      total: 1,
+      passed: 1,
+      failed: 0,
+      notApplicable: 0,
+    },
+    ...overrides,
+  };
+}
 
 describe('JSON Formatter', () => {
-  describe('Report Structure', () => {
-    it('should create valid JSON schema', async () => {
-      const expectedSchema = {
-        version: '1.0.0',
-        timestamp: expect.any(String),
-        repository: {
-          owner: expect.any(String),
-          name: expect.any(String),
-          url: expect.any(String),
-        },
-        scan: {
-          trigger: 'pull_request' | 'push' | 'schedule',
-          commit_sha: expect.any(String),
-          branch: expect.any(String),
-        },
-        frameworks: expect.arrayContaining([]),
-        results: {
-          overall_status: 'PASS' | 'FAIL',
-          controls_total: expect.any(Number),
-          controls_passed: expect.any(Number),
-          controls_failed: expect.any(Number),
-          controls_not_applicable: expect.any(Number),
-        },
-        controls: expect.arrayContaining([]),
-        metadata: expect.any(Object),
-      };
+  let formatter: JSONFormatter;
 
-      // TODO: Validate against schema
-      expect(true).toBe(true);
+  beforeEach(() => {
+    formatter = new JSONFormatter();
+  });
+
+  describe('Report Structure', () => {
+    it('should create valid JSON with all required top-level fields', () => {
+      const data = makeMinimalData();
+      const json = formatter.format(data);
+      const parsed = JSON.parse(json);
+
+      expect(parsed).toHaveProperty('metadata');
+      expect(parsed).toHaveProperty('framework');
+      expect(parsed).toHaveProperty('frameworks');
+      expect(parsed).toHaveProperty('timestamp');
+      expect(parsed).toHaveProperty('repository');
+      expect(parsed).toHaveProperty('compliance');
+      expect(parsed).toHaveProperty('summary');
+      expect(parsed).toHaveProperty('controls');
     });
 
-    it('should include all required fields', async () => {
-      const requiredFields = [
-        'version',
-        'timestamp',
-        'repository',
-        'scan',
-        'frameworks',
-        'results',
-        'controls',
-        'metadata',
-      ];
+    it('should include metadata with version, generator, and generatedAt', () => {
+      const data = makeMinimalData();
+      const parsed = JSON.parse(formatter.format(data));
 
-      // TODO: Verify all fields present
-      expect(true).toBe(true);
+      expect(parsed.metadata.version).toBe('1.0.0');
+      expect(parsed.metadata.generator).toBe('Compliance Autopilot');
+      expect(typeof parsed.metadata.generatedAt).toBe('string');
+      // Verify generatedAt is a valid ISO 8601 timestamp
+      expect(new Date(parsed.metadata.generatedAt).toISOString()).toBe(
+        parsed.metadata.generatedAt
+      );
+    });
+
+    it('should include repository name and owner', () => {
+      const data = makeMinimalData();
+      const parsed = JSON.parse(formatter.format(data));
+
+      expect(parsed.repository.name).toBe('test-repo');
+      expect(parsed.repository.owner).toBe('test-owner');
+    });
+
+    it('should include compliance score, status, and grade', () => {
+      const data = makeMinimalData();
+      const parsed = JSON.parse(formatter.format(data));
+
+      expect(typeof parsed.compliance.overallScore).toBe('number');
+      expect(typeof parsed.compliance.status).toBe('string');
+      expect(typeof parsed.compliance.grade).toBe('string');
+    });
+
+    it('should include summary with total, passed, failed, notApplicable, passRate', () => {
+      const data = makeMinimalData();
+      const parsed = JSON.parse(formatter.format(data));
+
+      expect(parsed.summary.total).toBe(1);
+      expect(parsed.summary.passed).toBe(1);
+      expect(parsed.summary.failed).toBe(0);
+      expect(parsed.summary.notApplicable).toBe(0);
+      expect(typeof parsed.summary.passRate).toBe('number');
+      expect(parsed.summary.passRate).toBe(100);
     });
   });
 
   describe('Control Format', () => {
-    it('should format control evidence correctly', async () => {
-      const controlFormat = {
-        id: 'CC1.1',
-        framework: 'SOC2',
-        title: 'Code Review Process',
-        description: expect.any(String),
-        status: 'PASS' | 'FAIL' | 'NOT_APPLICABLE',
-        severity: 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW',
-        evidence: {
-          // Framework-specific evidence
-        },
-        findings: expect.arrayContaining([]),
-        recommendations: expect.arrayContaining([]),
-        checked_at: expect.any(String),
-      };
+    it('should format controls with id, name, status, evidence, severity', () => {
+      const data = makeMinimalData({
+        controls: [
+          {
+            id: 'CC1.1',
+            name: 'Code Review Process',
+            status: 'PASS',
+            evidence: 'All PRs require approval',
+            severity: 'high',
+          },
+          {
+            id: 'CC2.1',
+            name: 'Access Control',
+            status: 'FAIL',
+            evidence: 'No MFA configured',
+            severity: 'critical',
+          },
+        ],
+        summary: { total: 2, passed: 1, failed: 1, notApplicable: 0 },
+      });
 
-      // TODO: Validate control format
-      expect(true).toBe(true);
+      const parsed = JSON.parse(formatter.format(data));
+
+      expect(parsed.controls).toHaveLength(2);
+
+      const control = parsed.controls[0];
+      expect(control).toHaveProperty('id');
+      expect(control).toHaveProperty('name');
+      expect(control).toHaveProperty('status');
+      expect(control).toHaveProperty('evidence');
+      expect(control).toHaveProperty('severity');
     });
 
-    it('should include evidence details', async () => {
-      const evidence = {
-        pull_request: {
-          number: 123,
-          url: 'https://github.com/...',
-          reviews: [
-            {
-              reviewer: 'user1',
-              state: 'APPROVED',
-              submitted_at: '2024-01-01T00:00:00Z',
-            },
-          ],
-        },
-      };
+    it('should include violations when present on controls', () => {
+      const data = makeMinimalData({
+        controls: [
+          {
+            id: 'CC1.1',
+            name: 'Secrets Check',
+            status: 'FAIL',
+            evidence: 'Hardcoded secrets found',
+            severity: 'critical',
+            violations: [
+              {
+                file: 'src/config.ts',
+                line: 10,
+                code: 'const key = "sk_live_abc123"',
+                recommendation: 'Use environment variables',
+              },
+            ],
+          },
+        ],
+        summary: { total: 1, passed: 0, failed: 1, notApplicable: 0 },
+        overallScore: 0,
+      });
 
-      // TODO: Verify evidence structure
-      expect(true).toBe(true);
+      const parsed = JSON.parse(formatter.format(data));
+      const control = parsed.controls[0];
+
+      expect(control.violations).toHaveLength(1);
+      expect(control.violations[0].file).toBe('src/config.ts');
+      expect(control.violations[0].line).toBe(10);
+      expect(control.violations[0].code).toContain('sk_live_abc123');
+      expect(control.violations[0].recommendation).toBe('Use environment variables');
+    });
+
+    it('should not include violations key when control has no violations', () => {
+      const data = makeMinimalData();
+      const parsed = JSON.parse(formatter.format(data));
+      const control = parsed.controls[0];
+
+      expect(control.violations).toBeUndefined();
     });
   });
 
   describe('Data Types', () => {
-    it('should use ISO 8601 timestamps', async () => {
-      const timestamp = '2024-01-15T10:30:00Z';
-      const iso8601Regex = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/;
+    it('should use ISO 8601 timestamp format', () => {
+      const data = makeMinimalData();
+      const parsed = JSON.parse(formatter.format(data));
 
-      expect(iso8601Regex.test(timestamp)).toBe(true);
+      const iso8601Regex = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$/;
+      expect(iso8601Regex.test(parsed.timestamp)).toBe(true);
     });
 
-    it('should use proper enums for status', async () => {
-      const validStatuses = ['PASS', 'FAIL', 'NOT_APPLICABLE'];
+    it('should use correct compliance status values', () => {
+      // All pass -> PASS
+      const passData = makeMinimalData();
+      const passResult = JSON.parse(formatter.format(passData));
+      expect(passResult.compliance.status).toBe('PASS');
 
-      // TODO: Validate enum values
-      expect(validStatuses).toContain('PASS');
+      // Any failure -> FAIL
+      const failData = makeMinimalData({
+        controls: [
+          {
+            id: 'CC1.1',
+            name: 'Test',
+            status: 'FAIL',
+            evidence: 'Failed',
+            severity: 'critical',
+          },
+        ],
+        summary: { total: 1, passed: 0, failed: 1, notApplicable: 0 },
+        overallScore: 0,
+      });
+      const failResult = JSON.parse(formatter.format(failData));
+      expect(failResult.compliance.status).toBe('FAIL');
     });
 
-    it('should use proper severity levels', async () => {
-      const severities = ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW'];
+    it('should calculate correct grade based on pass rate', () => {
+      // 100% pass rate -> Excellent
+      const data = makeMinimalData({ overallScore: 95 });
+      const parsed = JSON.parse(formatter.format(data));
+      expect(parsed.compliance.grade).toBe('Excellent');
 
-      // TODO: Validate severity enum
-      expect(severities).toHaveLength(4);
-    });
-  });
-
-  describe('Metadata', () => {
-    it('should include scan metadata', async () => {
-      const metadata = {
-        scan_duration_ms: expect.any(Number),
-        files_scanned: expect.any(Number),
-        github_api_calls: expect.any(Number),
-        claude_api_calls: expect.any(Number),
-        total_tokens_used: expect.any(Number),
-        estimated_cost_usd: expect.any(Number),
-      };
-
-      // TODO: Verify metadata included
-      expect(true).toBe(true);
-    });
-
-    it('should include version information', async () => {
-      const versionInfo = {
-        action_version: '1.0.0',
-        node_version: process.version,
-        platform: process.platform,
-      };
-
-      // TODO: Verify version metadata
-      expect(true).toBe(true);
+      // 75% pass rate -> Good
+      const data75 = makeMinimalData({
+        controls: [
+          { id: 'C1', name: 'A', status: 'PASS', evidence: 'ok', severity: 'low' },
+          { id: 'C2', name: 'B', status: 'PASS', evidence: 'ok', severity: 'low' },
+          { id: 'C3', name: 'C', status: 'PASS', evidence: 'ok', severity: 'low' },
+          { id: 'C4', name: 'D', status: 'FAIL', evidence: 'no', severity: 'low' },
+        ],
+        summary: { total: 4, passed: 3, failed: 1, notApplicable: 0 },
+        overallScore: 75,
+      });
+      const parsed75 = JSON.parse(formatter.format(data75));
+      expect(parsed75.compliance.grade).toBe('Good');
     });
   });
 
   describe('Serialization', () => {
-    it('should produce valid JSON', async () => {
-      const report = {
-        version: '1.0.0',
-        timestamp: new Date().toISOString(),
-      };
+    it('should produce valid JSON', () => {
+      const data = makeMinimalData();
+      const json = formatter.format(data);
 
-      const json = JSON.stringify(report);
-      const parsed = JSON.parse(json);
-
-      expect(parsed.version).toBe('1.0.0');
+      expect(() => JSON.parse(json)).not.toThrow();
     });
 
-    it('should be pretty-printed by default', async () => {
-      const report = { test: 'data' };
-      const json = JSON.stringify(report, null, 2);
+    it('should support pretty-printed output', () => {
+      const data = makeMinimalData();
+      const json = formatter.formatPretty(data);
 
       expect(json).toContain('\n');
       expect(json).toContain('  ');
+      expect(() => JSON.parse(json)).not.toThrow();
     });
 
-    it('should support minified output', async () => {
-      const report = { test: 'data' };
-      const json = JSON.stringify(report);
+    it('should produce minified output from format()', () => {
+      const data = makeMinimalData();
+      const json = formatter.format(data);
 
+      // format() uses JSON.stringify without indentation
       expect(json).not.toContain('\n');
     });
   });
 
-  describe('Validation', () => {
-    it('should validate against JSON schema', async () => {
-      // TODO: Use AJV or similar for schema validation
-      expect(true).toBe(true);
+  describe('Schema', () => {
+    it('should return a valid JSON schema object', () => {
+      const schema = formatter.getSchema();
+
+      expect(schema.type).toBe('object');
+      expect(Array.isArray(schema.required)).toBe(true);
+      expect(schema.required).toContain('metadata');
+      expect(schema.required).toContain('framework');
+      expect(schema.required).toContain('timestamp');
+      expect(schema.required).toContain('repository');
+      expect(schema.required).toContain('compliance');
+      expect(schema.required).toContain('summary');
+      expect(schema.required).toContain('controls');
     });
 
-    it('should reject invalid data', async () => {
-      const invalidReport = {
-        version: 'invalid',
-        // missing required fields
-      };
+    it('should define control items with required fields', () => {
+      const schema = formatter.getSchema();
+      const controlSchema = schema.properties.controls.items;
 
-      // TODO: Validation should fail
-      expect(true).toBe(true);
+      expect(controlSchema.required).toContain('id');
+      expect(controlSchema.required).toContain('name');
+      expect(controlSchema.required).toContain('status');
+      expect(controlSchema.required).toContain('evidence');
+      expect(controlSchema.required).toContain('severity');
+    });
+  });
+
+  describe('Validation', () => {
+    it('should reject invalid framework', () => {
+      const data = makeMinimalData({ framework: 'INVALID' as any });
+
+      expect(() => formatter.format(data)).toThrow('Invalid framework');
+    });
+
+    it('should reject non-Date timestamp', () => {
+      const data = makeMinimalData({ timestamp: 'not-a-date' as any });
+
+      expect(() => formatter.format(data)).toThrow('Invalid timestamp');
+    });
+
+    it('should reject missing repository name', () => {
+      const data = makeMinimalData({ repositoryName: '' });
+
+      expect(() => formatter.format(data)).toThrow('Repository name is required');
+    });
+
+    it('should reject score out of range', () => {
+      const data = makeMinimalData({ overallScore: -5 });
+
+      expect(() => formatter.format(data)).toThrow('Overall score must be a number');
     });
   });
 
   describe('Edge Cases', () => {
-    it('should handle empty controls array', async () => {
-      const report = {
+    it('should handle empty controls array', () => {
+      const data = makeMinimalData({
         controls: [],
-        results: {
-          controls_total: 0,
-          controls_passed: 0,
-        },
-      };
+        summary: { total: 0, passed: 0, failed: 0, notApplicable: 0 },
+      });
 
-      // TODO: Should serialize correctly
-      expect(true).toBe(true);
+      const parsed = JSON.parse(formatter.format(data));
+      expect(parsed.controls).toHaveLength(0);
+      expect(parsed.summary.total).toBe(0);
     });
 
-    it('should handle special characters in strings', async () => {
-      const specialChars = {
-        description: 'Test with "quotes" and <brackets> and & ampersands',
-      };
+    it('should handle special characters in strings', () => {
+      const data = makeMinimalData({
+        controls: [
+          {
+            id: 'CC1.1',
+            name: 'Test with "quotes" and <brackets> & ampersands',
+            status: 'PASS',
+            evidence: 'Evidence with "special" chars',
+            severity: 'low',
+          },
+        ],
+      });
 
-      const json = JSON.stringify(specialChars);
-      expect(json).toContain('\\"');
+      const json = formatter.format(data);
+      const parsed = JSON.parse(json);
+
+      expect(parsed.controls[0].name).toContain('"quotes"');
+      expect(parsed.controls[0].name).toContain('<brackets>');
+      expect(parsed.controls[0].name).toContain('& ampersands');
     });
 
-    it('should handle null values', async () => {
-      const withNulls = {
-        optional_field: null,
-      };
+    it('should handle multiple frameworks array', () => {
+      const data = makeMinimalData({
+        frameworks: ['SOC2', 'GDPR'],
+      });
 
-      const json = JSON.stringify(withNulls);
-      expect(json).toContain('null');
+      const parsed = JSON.parse(formatter.format(data));
+      expect(parsed.frameworks).toEqual(['SOC2', 'GDPR']);
+    });
+
+    it('should default frameworks to single-element array from framework field', () => {
+      const data = makeMinimalData();
+      const parsed = JSON.parse(formatter.format(data));
+      expect(parsed.frameworks).toEqual(['SOC2']);
     });
   });
 
   describe('Performance', () => {
-    it('should format large reports quickly', async () => {
-      const largeReport = {
-        controls: Array(200).fill({
-          id: 'CC1.1',
-          status: 'PASS',
-          evidence: { test: 'data' },
-        }),
-      };
+    it('should format large reports quickly', () => {
+      const data = makeMinimalData({
+        controls: Array.from({ length: 200 }, (_, i) => ({
+          id: `CC${i}.1`,
+          name: `Control ${i}`,
+          status: 'PASS' as const,
+          evidence: 'Evidence data',
+          severity: 'medium' as const,
+        })),
+        summary: { total: 200, passed: 200, failed: 0, notApplicable: 0 },
+      });
 
       const startTime = Date.now();
-      JSON.stringify(largeReport, null, 2);
+      formatter.format(data);
       const duration = Date.now() - startTime;
 
       expect(duration).toBeLessThan(100);
@@ -243,16 +380,23 @@ describe('JSON Formatter', () => {
   });
 
   describe('Compatibility', () => {
-    it('should be parseable by standard JSON parsers', async () => {
-      const report = { version: '1.0.0' };
-      const json = JSON.stringify(report);
+    it('should be parseable by standard JSON parsers', () => {
+      const data = makeMinimalData();
+      const json = formatter.format(data);
 
       expect(() => JSON.parse(json)).not.toThrow();
     });
 
-    it('should work with jq command-line tool', async () => {
-      // TODO: Manual validation with: echo '{}' | jq
-      expect(true).toBe(true);
+    it('should produce consistent output for same input', () => {
+      const data = makeMinimalData();
+      const json1 = JSON.parse(formatter.format(data));
+      const json2 = JSON.parse(formatter.format(data));
+
+      // Exclude generatedAt which changes each call
+      delete json1.metadata.generatedAt;
+      delete json2.metadata.generatedAt;
+
+      expect(json1).toEqual(json2);
     });
   });
 });

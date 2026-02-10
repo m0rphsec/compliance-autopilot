@@ -25,6 +25,7 @@ export interface ControlResult {
     evidence: string;
     severity: 'critical' | 'high' | 'medium' | 'low';
     violations?: Violation[];
+    recommendations?: string[];
 }
 export interface Violation {
     file: string;

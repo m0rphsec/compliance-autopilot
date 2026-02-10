@@ -1,161 +1,222 @@
 /**
  * Unit tests for configuration utility
- * Tests input validation and configuration management
+ * Tests input parsing, validation, and GitHub context extraction
  */
 
-import { describe, it, expect } from '@jest/globals';
+import { describe, it, expect, jest, beforeEach, afterAll } from "@jest/globals";
+import { ValidationError } from "../../../src/utils/errors";
 
-describe('Config Utility', () => {
-  describe('Input Validation', () => {
-    it('should validate GitHub token', () => {
-      const validTokens = ['ghp_...', 'github_pat_...'];
-      const invalidTokens = ['', 'invalid'];
+// We need to set up mocks BEFORE importing config
+const mockGetInput = jest.fn();
+const mockGetBooleanInput = jest.fn();
 
-      // TODO: Validate token format
-      expect(true).toBe(true);
+jest.mock("@actions/core", () => ({
+  getInput: (...args: any[]) => mockGetInput(...args),
+  getBooleanInput: (...args: any[]) => mockGetBooleanInput(...args),
+}));
+
+const mockContext = {
+  repo: { owner: "test-org", repo: "test-repo" },
+  ref: "refs/heads/main",
+  sha: "abc123def456",
+  payload: {} as any,
+};
+
+jest.mock("@actions/github", () => ({
+  context: mockContext,
+}));
+
+import { parseInputs, getGitHubContext, validatePermissions } from "../../../src/utils/config";
+
+// Helper: set up mocked getInput/getBooleanInput for valid defaults
+function setupValidInputs(overrides: Record<string, string> = {}) {
+  const defaults: Record<string, string> = {
+    "github-token": "ghp_test1234567890",
+    "anthropic-api-key": "sk-ant-test123",
+    "frameworks": "soc2",
+    "report-format": "both",
+    "license-key": "",
+    "slack-webhook": "",
+    "fail-on-violations": "false",
+  };
+  const merged = { ...defaults, ...overrides };
+
+  mockGetInput.mockImplementation((name: string) => {
+    return merged[name] ?? "";
+  });
+  mockGetBooleanInput.mockImplementation((name: string) => {
+    const val = merged[name];
+    return val === "true" || val === "True" || val === "TRUE";
+  });
+}
+
+describe("Config Utility", () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    // Reset payload between tests
+    mockContext.payload = {};
+  });
+
+  describe("parseInputs - valid inputs", () => {
+    it("should parse valid inputs and return ActionInputs", () => {
+      setupValidInputs();
+      const config = parseInputs();
+      expect(config.githubToken).toBe("ghp_test1234567890");
+      expect(config.anthropicApiKey).toBe("sk-ant-test123");
+      expect(config.frameworks).toEqual(["soc2"]);
+      expect(config.reportFormat).toBe("both");
+      expect(config.failOnViolations).toBe(false);
     });
 
-    it('should validate Anthropic API key', () => {
-      const validKey = 'sk-ant-api...';
-      const invalidKey = 'invalid';
-
-      // TODO: Validate key format
-      expect(true).toBe(true);
+    it("should parse multiple frameworks from comma-separated input", () => {
+      setupValidInputs({ "frameworks": "soc2,gdpr,iso27001" });
+      const config = parseInputs();
+      expect(config.frameworks).toEqual(["soc2", "gdpr", "iso27001"]);
     });
 
-    it('should validate framework names', () => {
-      const validFrameworks = ['soc2', 'gdpr', 'iso27001'];
-      const invalidFrameworks = ['invalid', 'soc3'];
-
-      // TODO: Whitelist validation
-      expect(true).toBe(true);
+    it("should trim whitespace in framework names", () => {
+      setupValidInputs({ "frameworks": " soc2 , gdpr " });
+      const config = parseInputs();
+      expect(config.frameworks).toEqual(["soc2", "gdpr"]);
     });
 
-    it('should validate report format', () => {
-      const validFormats = ['pdf', 'json', 'both'];
-      const invalidFormats = ['xml', 'csv'];
+    it("should lowercase framework names", () => {
+      setupValidInputs({ "frameworks": "SOC2,GDPR" });
+      const config = parseInputs();
+      expect(config.frameworks).toEqual(["soc2", "gdpr"]);
+    });
 
-      // TODO: Validate format enum
-      expect(true).toBe(true);
+    it("should accept pdf report format", () => {
+      setupValidInputs({ "report-format": "pdf" });
+      const config = parseInputs();
+      expect(config.reportFormat).toBe("pdf");
+    });
+
+    it("should accept json report format", () => {
+      setupValidInputs({ "report-format": "json" });
+      const config = parseInputs();
+      expect(config.reportFormat).toBe("json");
+    });
+
+    it("should set licenseKey to undefined when empty", () => {
+      setupValidInputs({ "license-key": "" });
+      const config = parseInputs();
+      expect(config.licenseKey).toBeUndefined();
+    });
+
+    it("should set slackWebhook to undefined when empty", () => {
+      setupValidInputs({ "slack-webhook": "" });
+      const config = parseInputs();
+      expect(config.slackWebhook).toBeUndefined();
+    });
+
+    it("should accept valid slack webhook URL", () => {
+      setupValidInputs({ "slack-webhook": "https://hooks.slack.com/services/T00/B00/xxx" });
+      const config = parseInputs();
+      expect(config.slackWebhook).toBe("https://hooks.slack.com/services/T00/B00/xxx");
+    });
+
+    it("should parse failOnViolations as boolean", () => {
+      setupValidInputs({ "fail-on-violations": "true" });
+      const config = parseInputs();
+      expect(config.failOnViolations).toBe(true);
     });
   });
 
-  describe('Environment Variables', () => {
-    it('should read from process.env', () => {
-      process.env.INPUT_GITHUB_TOKEN = 'test-token';
-
-      // TODO: Read INPUT_* variables
-      expect(true).toBe(true);
+  describe("parseInputs - validation errors", () => {
+    it("should throw on empty github-token", () => {
+      setupValidInputs({ "github-token": "" });
+      expect(() => parseInputs()).toThrow("github-token is required");
     });
 
-    it('should have default values', () => {
-      const defaults = {
-        frameworks: 'soc2',
-        reportFormat: 'both',
-        failOnViolations: 'false',
-      };
-
-      // TODO: Apply defaults
-      expect(true).toBe(true);
+    it("should throw on empty anthropic-api-key", () => {
+      setupValidInputs({ "anthropic-api-key": "" });
+      expect(() => parseInputs()).toThrow("anthropic-api-key is required");
     });
 
-    it('should parse boolean inputs', () => {
-      const trueValues = ['true', 'True', 'TRUE', '1', 'yes'];
-      const falseValues = ['false', 'False', 'FALSE', '0', 'no', ''];
-
-      // TODO: Parse to boolean
-      expect(true).toBe(true);
+    it("should throw on invalid anthropic-api-key prefix", () => {
+      setupValidInputs({ "anthropic-api-key": "invalid-key-123" });
+      expect(() => parseInputs()).toThrow("sk-ant-");
     });
 
-    it('should parse array inputs', () => {
-      const input = 'soc2,gdpr,iso27001';
-      const expected = ['soc2', 'gdpr', 'iso27001'];
+    it("should throw on invalid framework name", () => {
+      setupValidInputs({ "frameworks": "soc2,soc3" });
+      expect(() => parseInputs()).toThrow("soc3");
+    });
 
-      // TODO: Split by comma
-      expect(true).toBe(true);
+    it("should throw on invalid report format", () => {
+      setupValidInputs({ "report-format": "xml" });
+      expect(() => parseInputs()).toThrow("xml");
+    });
+
+    it("should throw on invalid slack webhook URL", () => {
+      setupValidInputs({ "slack-webhook": "https://not-slack.com/hook" });
+      expect(() => parseInputs()).toThrow("hooks.slack.com");
     });
   });
 
-  describe('Configuration Object', () => {
-    it('should create config object', () => {
-      const expectedConfig = {
-        github: {
-          token: expect.any(String),
-          owner: expect.any(String),
-          repo: expect.any(String),
-          prNumber: expect.any(Number),
+  describe("getGitHubContext", () => {
+    it("should extract repository info from github context", () => {
+      const ctx = getGitHubContext();
+      expect(ctx.owner).toBe("test-org");
+      expect(ctx.repo).toBe("test-repo");
+      expect(ctx.ref).toBe("refs/heads/main");
+      expect(ctx.sha).toBe("abc123def456");
+    });
+
+    it("should include pullRequest when present in payload", () => {
+      mockContext.payload = {
+        pull_request: {
+          number: 42,
+          head: { ref: "feature-branch" },
+          base: { ref: "main" },
         },
-        anthropic: {
-          apiKey: expect.any(String),
-        },
-        scan: {
-          frameworks: expect.any(Array),
-          reportFormat: expect.stringMatching(/pdf|json|both/),
-        },
-        options: {
-          failOnViolations: expect.any(Boolean),
-          slackWebhook: expect.anything(), // Can be string or undefined
-        },
       };
+      const ctx = getGitHubContext();
+      expect(ctx.pullRequest).toEqual({
+        number: 42,
+        head: "feature-branch",
+        base: "main",
+      });
+    });
 
-      // TODO: Create config
-      expect(true).toBe(true);
+    it("should not include pullRequest when not in payload", () => {
+      mockContext.payload = {};
+      const ctx = getGitHubContext();
+      expect(ctx.pullRequest).toBeUndefined();
     });
   });
 
-  describe('Error Handling', () => {
-    it('should throw on missing required fields', () => {
-      // TODO: Throw clear error
-      expect(true).toBe(true);
+  describe("validatePermissions", () => {
+    const originalEnv = process.env;
+
+    beforeEach(() => {
+      process.env = { ...originalEnv };
     });
 
-    it('should provide helpful error messages', () => {
-      // TODO: "Missing required input: anthropic-api-key"
-      expect(true).toBe(true);
-    });
-  });
-
-  describe('GitHub Context', () => {
-    it('should extract repository info from context', () => {
-      const context = {
-        repo: { owner: 'test-org', repo: 'test-repo' },
-        payload: { pull_request: { number: 123 } },
-      };
-
-      // TODO: Extract from @actions/github context
-      expect(true).toBe(true);
+    afterAll(() => {
+      process.env = originalEnv;
     });
 
-    it('should handle push events', () => {
-      const context = {
-        eventName: 'push',
-        sha: 'abc123',
-        ref: 'refs/heads/main',
-      };
-
-      // TODO: Handle different event types
-      expect(true).toBe(true);
+    it("should throw when not running in GitHub Actions", () => {
+      delete process.env.GITHUB_ACTIONS;
+      expect(() => validatePermissions()).toThrow("GitHub Actions");
     });
 
-    it('should handle schedule events', () => {
-      const context = {
-        eventName: 'schedule',
-      };
-
-      // TODO: Handle scheduled runs
-      expect(true).toBe(true);
+    it("should throw when required env vars are missing", () => {
+      process.env.GITHUB_ACTIONS = "true";
+      delete process.env.GITHUB_REPOSITORY;
+      delete process.env.GITHUB_SHA;
+      delete process.env.GITHUB_REF;
+      expect(() => validatePermissions()).toThrow("GITHUB_REPOSITORY");
     });
-  });
 
-  describe('Security', () => {
-    it('should not log sensitive values', () => {
-      const config = {
-        github: { token: 'ghp_secret' },
-        anthropic: { apiKey: 'sk-ant-secret' },
-      };
-
-      // TODO: Redact in logs
-      expect(true).toBe(true);
+    it("should pass when all env vars are present", () => {
+      process.env.GITHUB_ACTIONS = "true";
+      process.env.GITHUB_REPOSITORY = "test-org/test-repo";
+      process.env.GITHUB_SHA = "abc123";
+      process.env.GITHUB_REF = "refs/heads/main";
+      expect(() => validatePermissions()).not.toThrow();
     });
   });
 });
