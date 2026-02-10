@@ -448,7 +448,7 @@ async function collectEvidence(
  */
 function buildGDPREvaluations(
   result: GDPRCollectorResult,
-  sourceFiles: Array<{ code: string; path: string }>,
+  sourceFiles: Array<{ code: string; path: string }>
 ): ControlEvaluation[] {
   const now = new Date().toISOString();
   const noPII = result.summary.files_with_pii === 0;
@@ -600,10 +600,10 @@ function buildGDPREvaluations(
 
   // 2. Check for data minimization patterns in code
   const minimizationPatterns = [
-    /\.select\s*\(/,                         // ORM .select() explicit field selection
-    /SELECT\s+(?!\*)\w+\s*,/i,              // SQL SELECT with explicit columns (not SELECT *)
-    /\.pick\s*\(/,                           // Zod/lodash .pick()
-    /\.omit\s*\(/,                           // Zod/lodash .omit()
+    /\.select\s*\(/, // ORM .select() explicit field selection
+    /SELECT\s+(?!\*)\w+\s*,/i, // SQL SELECT with explicit columns (not SELECT *)
+    /\.pick\s*\(/, // Zod/lodash .pick()
+    /\.omit\s*\(/, // Zod/lodash .omit()
   ];
   let foundMinimization = false;
   for (const file of sourceFiles) {
@@ -647,9 +647,11 @@ function buildGDPREvaluations(
     controlId: 'GDPR-Art25',
     controlName: 'Data Protection by Design (Art. 25)',
     framework: CFEnum.GDPR,
-    result: dpbdPass ? ControlResult.PASS
-      : dpbdPartial ? ControlResult.PARTIAL
-      : ControlResult.FAIL,
+    result: dpbdPass
+      ? ControlResult.PASS
+      : dpbdPartial
+        ? ControlResult.PARTIAL
+        : ControlResult.FAIL,
     evidence: [],
     evaluatedAt: now,
     notes: dpbdPass
@@ -658,13 +660,14 @@ function buildGDPREvaluations(
         ? `Limited privacy-by-design signals: ${privacySignals.join('; ')}`
         : 'No privacy-by-design signals detected in scanned files.',
     severity: dpbdPass ? undefined : Severity.HIGH,
-    findings: dpbdScore < 2
-      ? [
-          'Add PRIVACY.md or privacy policy documentation',
-          'Use data minimization patterns (explicit field selection)',
-          'Add privacy-aware code annotations',
-        ]
-      : [],
+    findings:
+      dpbdScore < 2
+        ? [
+            'Add PRIVACY.md or privacy policy documentation',
+            'Use data minimization patterns (explicit field selection)',
+            'Add privacy-aware code annotations',
+          ]
+        : [],
   });
 
   return evaluations;
@@ -781,7 +784,8 @@ async function generateReports(
         total: report.totalControls,
         passed: report.passedControls,
         failed: report.frameworks.reduce(
-          (sum, fw) => sum + fw.failedControls + fw.errorControls, 0,
+          (sum, fw) => sum + fw.failedControls + fw.errorControls,
+          0
         ),
         partial: report.frameworks.reduce((sum, fw) => sum + fw.warnControls, 0),
         notApplicable: report.frameworks.reduce((sum, fw) => sum + fw.skippedControls, 0),

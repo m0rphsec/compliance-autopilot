@@ -461,7 +461,6 @@ export class SOC2Collector {
     };
   }
 
-
   /**
    * CC3.1 - Risk Assessment
    * Check: SECURITY.md exists and security issues are tracked

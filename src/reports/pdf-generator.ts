@@ -403,7 +403,10 @@ export class PDFGenerator {
 
       // Sort: PASS first, then PARTIAL, then FAIL
       const statusOrder: Record<string, number> = {
-        PASS: 0, PARTIAL: 1, FAIL: 2, NOT_APPLICABLE: 3,
+        PASS: 0,
+        PARTIAL: 1,
+        FAIL: 2,
+        NOT_APPLICABLE: 3,
       };
       const sorted = [...controls].sort(
         (a, b) => (statusOrder[a.status] ?? 4) - (statusOrder[b.status] ?? 4)
@@ -451,14 +454,11 @@ export class PDFGenerator {
     // Per-framework summary line
     const fwSummary = summaries?.find((s) => s.framework === framework);
     if (fwSummary) {
-      this.drawText(
-        `${fwSummary.passed} of ${fwSummary.total} controls passed`,
-        {
-          font: this.fonts.italic,
-          size: FONT_SIZES.small,
-          color: COLORS.textLight,
-        }
-      );
+      this.drawText(`${fwSummary.passed} of ${fwSummary.total} controls passed`, {
+        font: this.fonts.italic,
+        size: FONT_SIZES.small,
+        color: COLORS.textLight,
+      });
     }
 
     this.currentY -= 10;
@@ -790,9 +790,8 @@ export class PDFGenerator {
     }
     boxes.push({ label: 'N/A', value: summary.notApplicable, color: COLORS.textLight });
 
-    const availableWidth = this.getPageWidth()
-      - MARGINS.left - MARGINS.right
-      - spacing * (boxes.length - 1);
+    const availableWidth =
+      this.getPageWidth() - MARGINS.left - MARGINS.right - spacing * (boxes.length - 1);
     const boxWidth = Math.min(100, availableWidth / boxes.length);
 
     boxes.forEach((box, i) => {

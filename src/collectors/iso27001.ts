@@ -512,7 +512,9 @@ export class ISO27001Collector {
       notes: pass
         ? `${activeWorkflows.length} active workflow(s) with recent commit activity.`
         : 'No active workflows or no recent activity detected.',
-      findings: pass ? [] : ['Enable CI/CD workflows and ensure regular commit activity for event logging'],
+      findings: pass
+        ? []
+        : ['Enable CI/CD workflows and ensure regular commit activity for event logging'],
       evaluatedAt: new Date().toISOString(),
     };
   }
