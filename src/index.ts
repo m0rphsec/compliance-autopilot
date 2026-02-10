@@ -775,7 +775,7 @@ async function generateReports(
       summary: {
         total: report.totalControls,
         passed: report.passedControls,
-        failed: report.failedControls,
+        failed: report.frameworks.reduce((sum, fw) => sum + fw.failedControls + fw.errorControls, 0),
         partial: report.frameworks.reduce((sum, fw) => sum + fw.warnControls, 0),
         notApplicable: report.frameworks.reduce((sum, fw) => sum + fw.skippedControls, 0),
       },
@@ -783,7 +783,7 @@ async function generateReports(
         framework: fw.framework.toUpperCase(),
         total: fw.totalControls,
         passed: fw.passedControls,
-        failed: fw.failedControls + fw.warnControls + fw.errorControls,
+        failed: fw.failedControls + fw.errorControls,
       })),
     };
 
