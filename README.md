@@ -308,6 +308,3 @@ The action will automatically run and post a compliance report!
 
 MIT © [m0rphsec](https://github.com/m0rphsec)
 
----
-
-**Built with [Claude](https://anthropic.com) by [m0rphsec](https://github.com/m0rphsec)**
