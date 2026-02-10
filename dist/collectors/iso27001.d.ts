@@ -53,6 +53,16 @@ export declare class ISO27001Collector {
      */
     private evaluateA12_1_2;
     /**
+     * A.12.2.1 - Controls Against Malware
+     * Check: Security scanning workflows exist (security/scan/codeql/snyk/dependabot)
+     */
+    private evaluateA12_2_1;
+    /**
+     * A.12.4.1 - Event Logging
+     * Check: CI/CD workflows running and recent commit activity
+     */
+    private evaluateA12_4_1;
+    /**
      * A.12.6.1 - Management of Technical Vulnerabilities
      * Check: Dependabot or vulnerability scanning enabled
      */

@@ -169,11 +169,11 @@ describe('PDF Report Generator', () => {
       const soc2Output = await generator.generate(makeMinimalData({ framework: 'SOC2' }));
       const gdprOutput = await generator.generate(makeMinimalData({ framework: 'GDPR' }));
 
-      // Different frameworks should produce different PDF sizes or content
-      // since they use different templates
-      const soc2Bytes = Array.from(soc2Output.slice(100, 200));
-      const gdprBytes = Array.from(gdprOutput.slice(100, 200));
-      expect(soc2Bytes).not.toEqual(gdprBytes);
+      // Different frameworks should produce different PDF content
+      // Compare overall size or later bytes where framework-specific content differs
+      const soc2Full = Array.from(soc2Output);
+      const gdprFull = Array.from(gdprOutput);
+      expect(soc2Full.length !== gdprFull.length || soc2Full.some((b, i) => b !== gdprFull[i])).toBe(true);
     });
 
     it('should handle multiple frameworks in badges', async () => {

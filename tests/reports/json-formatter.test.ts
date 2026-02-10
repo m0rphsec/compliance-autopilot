@@ -211,7 +211,7 @@ describe('JSONFormatter', () => {
       const schema = formatter.getSchema();
       const controlSchema = schema.properties.controls.items;
 
-      expect(controlSchema.properties.status.enum).toEqual(['PASS', 'FAIL', 'NOT_APPLICABLE']);
+      expect(controlSchema.properties.status.enum).toEqual(['PASS', 'PARTIAL', 'FAIL', 'NOT_APPLICABLE']);
     });
   });
 

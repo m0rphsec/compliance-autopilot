@@ -193,7 +193,10 @@ async function run(): Promise<void> {
 
     const totalControls = frameworkResults.reduce((sum, fr) => sum + fr.totalControls, 0);
     const passedControls = frameworkResults.reduce((sum, fr) => sum + fr.passedControls, 0);
-    const failedControls = frameworkResults.reduce((sum, fr) => sum + fr.failedControls, 0);
+    const failedControls = frameworkResults.reduce(
+      (sum, fr) => sum + fr.failedControls + fr.warnControls + fr.errorControls,
+      0
+    );
 
     logger.info('Evidence collection complete', {
       frameworks: frameworkResults.length,
@@ -764,6 +767,7 @@ async function generateReports(
           status: mapControlStatus(ctrl.result || ctrl.status),
           evidence: ctrl.notes || ctrl.evidence || 'Evidence collected',
           severity: (ctrl.severity || 'medium') as 'critical' | 'high' | 'medium' | 'low',
+          framework: fw.framework.toUpperCase(),
           violations: [],
           recommendations: ctrl.findings || [],
         }))
@@ -772,8 +776,15 @@ async function generateReports(
         total: report.totalControls,
         passed: report.passedControls,
         failed: report.failedControls,
+        partial: report.frameworks.reduce((sum, fw) => sum + fw.warnControls, 0),
         notApplicable: report.frameworks.reduce((sum, fw) => sum + fw.skippedControls, 0),
       },
+      frameworkSummaries: report.frameworks.map((fw) => ({
+        framework: fw.framework.toUpperCase(),
+        total: fw.totalControls,
+        passed: fw.passedControls,
+        failed: fw.failedControls + fw.warnControls + fw.errorControls,
+      })),
     };
 
     // Ensure we have at least one control for the generators
@@ -825,11 +836,11 @@ async function generateReports(
 /**
  * Map control result to PDF status
  */
-function mapControlStatus(result: string): 'PASS' | 'FAIL' | 'NOT_APPLICABLE' {
+function mapControlStatus(result: string): 'PASS' | 'FAIL' | 'PARTIAL' | 'NOT_APPLICABLE' {
   const normalized = (result || '').toLowerCase();
   if (normalized === 'pass' || normalized === 'passed') return 'PASS';
   if (normalized === 'fail' || normalized === 'failed') return 'FAIL';
-  if (normalized === 'partial') return 'FAIL'; // Treat partial as fail for reporting
+  if (normalized === 'partial') return 'PARTIAL';
   return 'NOT_APPLICABLE';
 }
 

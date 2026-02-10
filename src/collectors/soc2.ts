@@ -53,6 +53,30 @@ const SOC2_CONTROL_DEFS: Record<string, SOC2ControlDef> = {
     name: 'System Monitoring',
     description: 'Security incidents tracked',
   },
+  'CC3.1': {
+    name: 'Risk Assessment',
+    description: 'Security risks identified and assessed',
+  },
+  'CC5.2': {
+    name: 'Dependency Risk Management',
+    description: 'Dependencies monitored for vulnerabilities',
+  },
+  'CC6.3': {
+    name: 'Environment Protection',
+    description: 'Environments have protection rules',
+  },
+  'CC6.8': {
+    name: 'Software Development Lifecycle',
+    description: 'SDLC workflows enforced via CI/CD',
+  },
+  'CC7.2': {
+    name: 'Monitoring & Anomaly Detection',
+    description: 'Security scanning workflows configured',
+  },
+  'CC8.1': {
+    name: 'Change Management',
+    description: 'Changes managed through pull requests',
+  },
 };
 
 /**
@@ -123,6 +147,60 @@ export class SOC2Collector {
     } catch (error) {
       logger.error('Failed to evaluate CC7.1', error instanceof Error ? error : undefined);
       evaluations.push(this.createErrorResult('CC7.1', error));
+    }
+
+    // Evaluate CC3.1 - Risk Assessment
+    try {
+      const cc3_1 = await this.evaluateCC3_1();
+      evaluations.push(cc3_1);
+    } catch (error) {
+      logger.error('Failed to evaluate CC3.1', error instanceof Error ? error : undefined);
+      evaluations.push(this.createErrorResult('CC3.1', error));
+    }
+
+    // Evaluate CC5.2 - Dependency Risk Management
+    try {
+      const cc5_2 = await this.evaluateCC5_2();
+      evaluations.push(cc5_2);
+    } catch (error) {
+      logger.error('Failed to evaluate CC5.2', error instanceof Error ? error : undefined);
+      evaluations.push(this.createErrorResult('CC5.2', error));
+    }
+
+    // Evaluate CC6.3 - Environment Protection
+    try {
+      const cc6_3 = await this.evaluateCC6_3();
+      evaluations.push(cc6_3);
+    } catch (error) {
+      logger.error('Failed to evaluate CC6.3', error instanceof Error ? error : undefined);
+      evaluations.push(this.createErrorResult('CC6.3', error));
+    }
+
+    // Evaluate CC6.8 - Software Development Lifecycle
+    try {
+      const cc6_8 = await this.evaluateCC6_8();
+      evaluations.push(cc6_8);
+    } catch (error) {
+      logger.error('Failed to evaluate CC6.8', error instanceof Error ? error : undefined);
+      evaluations.push(this.createErrorResult('CC6.8', error));
+    }
+
+    // Evaluate CC7.2 - Monitoring & Anomaly Detection
+    try {
+      const cc7_2 = await this.evaluateCC7_2();
+      evaluations.push(cc7_2);
+    } catch (error) {
+      logger.error('Failed to evaluate CC7.2', error instanceof Error ? error : undefined);
+      evaluations.push(this.createErrorResult('CC7.2', error));
+    }
+
+    // Evaluate CC8.1 - Change Management
+    try {
+      const cc8_1 = await this.evaluateCC8_1();
+      evaluations.push(cc8_1);
+    } catch (error) {
+      logger.error('Failed to evaluate CC8.1', error instanceof Error ? error : undefined);
+      evaluations.push(this.createErrorResult('CC8.1', error));
     }
 
     // Calculate summary
@@ -379,6 +457,313 @@ export class SOC2Collector {
       evidence,
       notes: `${issues.length} security-related issues tracked.`,
       findings: [],
+      evaluatedAt: new Date().toISOString(),
+    };
+  }
+
+
+  /**
+   * CC3.1 - Risk Assessment
+   * Check: SECURITY.md exists and security issues are tracked
+   */
+  private async evaluateCC3_1(): Promise<ControlEvaluation> {
+    const control = SOC2_CONTROL_DEFS['CC3.1'];
+    const evidence: EvidenceArtifact[] = [];
+
+    let securityMdExists = false;
+    try {
+      await this.octokit.repos.getContent({
+        owner: this.config.owner,
+        repo: this.config.repo,
+        path: 'SECURITY.md',
+      });
+      securityMdExists = true;
+    } catch (err: unknown) {
+      const status = (err as { status?: number }).status;
+      if (status !== 404) {
+        throw err;
+      }
+    }
+
+    const { data: securityIssues } = await this.octokit.issues.listForRepo({
+      owner: this.config.owner,
+      repo: this.config.repo,
+      labels: 'security',
+      state: 'all',
+      per_page: 50,
+    });
+
+    evidence.push(
+      this.createEvidence('api_response', 'github_security_md', {
+        exists: securityMdExists,
+      })
+    );
+
+    evidence.push(
+      this.createEvidence('api_response', 'github_security_issues', {
+        total_security_issues: securityIssues.length,
+      })
+    );
+
+    return {
+      controlId: 'CC3.1',
+      controlName: control.name,
+      framework: ComplianceFramework.SOC2,
+      result: securityMdExists ? ControlResult.PASS : ControlResult.FAIL,
+      evidence,
+      notes: securityMdExists
+        ? `SECURITY.md exists. ${securityIssues.length} security-labeled issues tracked.`
+        : 'No SECURITY.md found in repository.',
+      findings: securityMdExists ? [] : ['Add a SECURITY.md file to document security policies'],
+      evaluatedAt: new Date().toISOString(),
+    };
+  }
+
+  /**
+   * CC5.2 - Dependency Risk Management
+   * Check: Dependabot configuration exists
+   */
+  private async evaluateCC5_2(): Promise<ControlEvaluation> {
+    const control = SOC2_CONTROL_DEFS['CC5.2'];
+    const evidence: EvidenceArtifact[] = [];
+
+    let dependabotConfigExists = false;
+    try {
+      await this.octokit.repos.getContent({
+        owner: this.config.owner,
+        repo: this.config.repo,
+        path: '.github/dependabot.yml',
+      });
+      dependabotConfigExists = true;
+    } catch (err: unknown) {
+      const status = (err as { status?: number }).status;
+      if (status !== 404) {
+        throw err;
+      }
+    }
+
+    evidence.push(
+      this.createEvidence('api_response', 'github_dependabot_config', {
+        exists: dependabotConfigExists,
+      })
+    );
+
+    return {
+      controlId: 'CC5.2',
+      controlName: control.name,
+      framework: ComplianceFramework.SOC2,
+      result: dependabotConfigExists ? ControlResult.PASS : ControlResult.FAIL,
+      evidence,
+      notes: dependabotConfigExists
+        ? 'Dependabot configuration found.'
+        : 'No Dependabot configuration found.',
+      findings: dependabotConfigExists
+        ? []
+        : ['Add .github/dependabot.yml to manage dependency updates'],
+      evaluatedAt: new Date().toISOString(),
+    };
+  }
+
+  /**
+   * CC6.3 - Environment Protection
+   * Check: At least one environment with protection rules
+   */
+  private async evaluateCC6_3(): Promise<ControlEvaluation> {
+    const control = SOC2_CONTROL_DEFS['CC6.3'];
+    const evidence: EvidenceArtifact[] = [];
+
+    let environments: { name: string; protection_rules?: unknown[] }[] = [];
+    try {
+      const { data } = await this.octokit.repos.getAllEnvironments({
+        owner: this.config.owner,
+        repo: this.config.repo,
+      });
+      environments = (data.environments ?? []) as {
+        name: string;
+        protection_rules?: unknown[];
+      }[];
+    } catch (err: unknown) {
+      const status = (err as { status?: number }).status;
+      if (status !== 404) {
+        throw err;
+      }
+    }
+
+    const protectedEnvs = environments.filter(
+      (env) => env.protection_rules && env.protection_rules.length > 0
+    );
+
+    evidence.push(
+      this.createEvidence('api_response', 'github_environments', {
+        total_environments: environments.length,
+        protected_environments: protectedEnvs.length,
+        environments: environments.map((e) => ({
+          name: e.name,
+          protection_rules_count: e.protection_rules?.length ?? 0,
+        })),
+      })
+    );
+
+    const pass = protectedEnvs.length >= 1;
+
+    return {
+      controlId: 'CC6.3',
+      controlName: control.name,
+      framework: ComplianceFramework.SOC2,
+      result: pass ? ControlResult.PASS : ControlResult.FAIL,
+      evidence,
+      notes: pass
+        ? `${protectedEnvs.length} environment(s) with protection rules.`
+        : 'No environments with protection rules found.',
+      findings: pass ? [] : ['Configure environment protection rules for deployment targets'],
+      evaluatedAt: new Date().toISOString(),
+    };
+  }
+
+  /**
+   * CC6.8 - Software Development Lifecycle
+   * Check: 2+ workflows with SDLC keywords (test, lint, build)
+   */
+  private async evaluateCC6_8(): Promise<ControlEvaluation> {
+    const control = SOC2_CONTROL_DEFS['CC6.8'];
+
+    const { data: workflows } = await this.octokit.actions.listRepoWorkflows({
+      owner: this.config.owner,
+      repo: this.config.repo,
+    });
+
+    const sdlcKeywords = /test|lint|build|ci|check/i;
+    const sdlcWorkflows = workflows.workflows.filter(
+      (w) => sdlcKeywords.test(w.name) || sdlcKeywords.test(w.path)
+    );
+
+    const evidence: EvidenceArtifact[] = [
+      this.createEvidence('api_response', 'github_sdlc_workflows', {
+        total_workflows: workflows.total_count,
+        sdlc_workflows: sdlcWorkflows.length,
+        matching_workflows: sdlcWorkflows.map((w) => ({
+          name: w.name,
+          path: w.path,
+          state: w.state,
+        })),
+      }),
+    ];
+
+    const pass = sdlcWorkflows.length >= 2;
+
+    return {
+      controlId: 'CC6.8',
+      controlName: control.name,
+      framework: ComplianceFramework.SOC2,
+      result: pass ? ControlResult.PASS : ControlResult.FAIL,
+      evidence,
+      notes: pass
+        ? `${sdlcWorkflows.length} SDLC workflows found (test/lint/build).`
+        : `Only ${sdlcWorkflows.length} SDLC workflow(s) found. At least 2 required.`,
+      findings: pass ? [] : ['Add CI/CD workflows for testing, linting, and building'],
+      evaluatedAt: new Date().toISOString(),
+    };
+  }
+
+  /**
+   * CC7.2 - Monitoring & Anomaly Detection
+   * Check: 1+ security scanning workflows (security, scan, codeql, snyk)
+   */
+  private async evaluateCC7_2(): Promise<ControlEvaluation> {
+    const control = SOC2_CONTROL_DEFS['CC7.2'];
+
+    const { data: workflows } = await this.octokit.actions.listRepoWorkflows({
+      owner: this.config.owner,
+      repo: this.config.repo,
+    });
+
+    const securityKeywords = /security|scan|codeql|snyk|trivy|dependabot/i;
+    const securityWorkflows = workflows.workflows.filter(
+      (w) => securityKeywords.test(w.name) || securityKeywords.test(w.path)
+    );
+
+    const evidence: EvidenceArtifact[] = [
+      this.createEvidence('api_response', 'github_security_workflows', {
+        total_workflows: workflows.total_count,
+        security_workflows: securityWorkflows.length,
+        matching_workflows: securityWorkflows.map((w) => ({
+          name: w.name,
+          path: w.path,
+          state: w.state,
+        })),
+      }),
+    ];
+
+    const pass = securityWorkflows.length >= 1;
+
+    return {
+      controlId: 'CC7.2',
+      controlName: control.name,
+      framework: ComplianceFramework.SOC2,
+      result: pass ? ControlResult.PASS : ControlResult.FAIL,
+      evidence,
+      notes: pass
+        ? `${securityWorkflows.length} security scanning workflow(s) found.`
+        : 'No security scanning workflows found.',
+      findings: pass ? [] : ['Add security scanning workflows (e.g., CodeQL, Snyk, Trivy)'],
+      evaluatedAt: new Date().toISOString(),
+    };
+  }
+
+  /**
+   * CC8.1 - Change Management
+   * Check: 80%+ of recent closed PRs were merged (vs direct pushes)
+   */
+  private async evaluateCC8_1(): Promise<ControlEvaluation> {
+    const control = SOC2_CONTROL_DEFS['CC8.1'];
+
+    const { data: pulls } = await this.octokit.pulls.list({
+      owner: this.config.owner,
+      repo: this.config.repo,
+      state: 'closed',
+      base: this.config.gitRef ?? 'main',
+      sort: 'updated',
+      direction: 'desc',
+      per_page: 50,
+    });
+
+    const totalClosed = pulls.length;
+    const mergedCount = pulls.filter((pr) => pr.merged_at).length;
+    const mergeRate = totalClosed > 0 ? mergedCount / totalClosed : 0;
+
+    const evidence: EvidenceArtifact[] = [
+      this.createEvidence('api_response', 'github_change_management', {
+        total_closed_prs: totalClosed,
+        merged_prs: mergedCount,
+        merge_rate: Math.round(mergeRate * 100),
+      }),
+    ];
+
+    let result: ControlResult;
+    if (totalClosed === 0) {
+      result = ControlResult.FAIL;
+    } else if (mergeRate >= 0.8) {
+      result = ControlResult.PASS;
+    } else if (mergeRate >= 0.5) {
+      result = ControlResult.PARTIAL;
+    } else {
+      result = ControlResult.FAIL;
+    }
+
+    return {
+      controlId: 'CC8.1',
+      controlName: control.name,
+      framework: ComplianceFramework.SOC2,
+      result,
+      evidence,
+      notes:
+        totalClosed > 0
+          ? `${Math.round(mergeRate * 100)}% of closed PRs were merged (${mergedCount}/${totalClosed}).`
+          : 'No closed pull requests found.',
+      findings:
+        result === ControlResult.PASS
+          ? []
+          : ['Ensure changes are managed through pull requests rather than direct pushes'],
       evaluatedAt: new Date().toISOString(),
     };
   }

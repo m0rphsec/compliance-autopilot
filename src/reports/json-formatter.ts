@@ -33,21 +33,30 @@ interface FormattedOutput {
     total: number;
     passed: number;
     failed: number;
+    partial: number;
     notApplicable: number;
     passRate: number;
   };
+  frameworkSummaries?: Array<{
+    framework: string;
+    total: number;
+    passed: number;
+    failed: number;
+  }>;
   controls: Array<{
     id: string;
     name: string;
     status: string;
     evidence: string;
     severity: string;
+    framework?: string;
     violations?: Array<{
       file: string;
       line: number;
       code: string;
       recommendation: string;
     }>;
+    recommendations?: string[];
   }>;
 }
 
@@ -210,7 +219,7 @@ export class JSONFormatter {
               },
               status: {
                 type: 'string',
-                enum: ['PASS', 'FAIL', 'NOT_APPLICABLE'],
+                enum: ['PASS', 'PARTIAL', 'FAIL', 'NOT_APPLICABLE'],
                 description: 'Control status',
               },
               evidence: {
@@ -221,6 +230,11 @@ export class JSONFormatter {
                 type: 'string',
                 enum: ['critical', 'high', 'medium', 'low'],
                 description: 'Severity level',
+              },
+              framework: {
+                type: 'string',
+                enum: ['SOC2', 'GDPR', 'ISO27001'],
+                description: 'Compliance framework this control belongs to',
               },
               violations: {
                 type: 'array',
@@ -331,9 +345,11 @@ export class JSONFormatter {
         total: data.summary.total,
         passed: data.summary.passed,
         failed: data.summary.failed,
+        partial: data.summary.partial || 0,
         notApplicable: data.summary.notApplicable,
         passRate: Math.round(passRate * 100) / 100,
       },
+      frameworkSummaries: data.frameworkSummaries,
       controls: data.controls.map((control) => this.formatControl(control)),
     };
   }
@@ -350,8 +366,16 @@ export class JSONFormatter {
       severity: control.severity,
     };
 
+    if (control.framework) {
+      formatted.framework = control.framework;
+    }
+
     if (control.violations && control.violations.length > 0) {
       formatted.violations = control.violations.map((v) => this.formatViolation(v));
+    }
+
+    if (control.recommendations && control.recommendations.length > 0) {
+      formatted.recommendations = control.recommendations;
     }
 
     return formatted;

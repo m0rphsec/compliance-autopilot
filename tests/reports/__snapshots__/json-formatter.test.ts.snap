@@ -47,6 +47,7 @@ exports[`JSONFormatter snapshot testing should match JSON structure snapshot 1`]
   "summary": {
     "failed": 7,
     "notApplicable": 2,
+    "partial": 0,
     "passRate": 85.94,
     "passed": 55,
     "total": 64,

@@ -24,6 +24,8 @@ describe('SOC2Collector', () => {
         getBranchProtection: jest.fn(),
         listCollaborators: jest.fn(),
         listDeployments: jest.fn(),
+        getContent: jest.fn(),
+        getAllEnvironments: jest.fn(),
       },
       pulls: {
         list: jest.fn(),
@@ -112,6 +114,21 @@ describe('SOC2Collector', () => {
     mockOctokit.issues.listForRepo.mockResolvedValue({
       data: [],
     });
+
+    mockOctokit.repos.getContent.mockResolvedValue({
+      data: { content: Buffer.from('# Security Policy').toString('base64') },
+    });
+
+    mockOctokit.repos.getAllEnvironments.mockResolvedValue({
+      data: {
+        environments: [
+          {
+            name: 'production',
+            protection_rules: [{ type: 'required_reviewers' }],
+          },
+        ],
+      },
+    });
   }
 
   describe('collect', () => {
@@ -123,9 +140,9 @@ describe('SOC2Collector', () => {
       expect(report).toBeDefined();
       expect(report.framework).toBe(ComplianceFramework.SOC2);
       expect(report.repository).toBe('test-owner/test-repo');
-      expect(report.evaluations).toHaveLength(4);
+      expect(report.evaluations).toHaveLength(10);
       expect(report.summary).toBeDefined();
-      expect(report.summary.totalControls).toBe(4);
+      expect(report.summary.totalControls).toBe(10);
     });
 
     it('should handle API errors gracefully', async () => {
@@ -149,21 +166,136 @@ describe('SOC2Collector', () => {
       mockOctokit.issues.listForRepo.mockRejectedValue(
         new Error('API Error')
       );
+      mockOctokit.repos.getContent.mockRejectedValue(
+        new Error('API Error')
+      );
+      mockOctokit.repos.getAllEnvironments.mockRejectedValue(
+        new Error('API Error')
+      );
 
       const report = await collector.collect();
 
       expect(report).toBeDefined();
-      expect(report.evaluations).toHaveLength(4);
+      expect(report.evaluations).toHaveLength(10);
       // All controls should be ERROR because every API call fails
       for (const evaluation of report.evaluations) {
         expect(evaluation.result).toBe(ControlResult.ERROR);
       }
-      expect(report.summary.errorControls).toBe(4);
+      expect(report.summary.errorControls).toBe(10);
       expect(report.summary.compliancePercentage).toBe(0);
     });
   });
 
-  describe('CC1.1 - Code Review Process', () => {
+  describe('CC5.2 - Dependency Risk Management', () => {
+    it('should PASS when dependabot.yml exists', async () => {
+      setupDefaultMocks();
+
+      const report = await collector.collect();
+      const cc52Result = report.evaluations.find((c) => c.controlId === 'CC5.2');
+
+      expect(cc52Result).toBeDefined();
+      expect(cc52Result?.result).toBe(ControlResult.PASS);
+      expect(cc52Result?.evidence.length).toBeGreaterThan(0);
+      expect(cc52Result?.notes).toContain('Dependabot configuration found');
+    });
+
+    it('should FAIL when dependabot.yml does not exist', async () => {
+      setupDefaultMocks();
+
+      // Override getContent to 404 for dependabot.yml
+      mockOctokit.repos.getContent.mockImplementation(
+        async ({ path }: { path: string }) => {
+          if (path === '.github/dependabot.yml') {
+            const err = new Error('Not Found') as Error & { status: number };
+            err.status = 404;
+            throw err;
+          }
+          return { data: { content: Buffer.from('content').toString('base64') } };
+        }
+      );
+
+      const report = await collector.collect();
+      const cc52Result = report.evaluations.find((c) => c.controlId === 'CC5.2');
+
+      expect(cc52Result).toBeDefined();
+      expect(cc52Result?.result).toBe(ControlResult.FAIL);
+      expect(cc52Result?.findings?.length).toBeGreaterThan(0);
+    });
+  });
+
+  describe('CC8.1 - Change Management', () => {
+    it('should PASS when 80%+ PRs are merged', async () => {
+      setupDefaultMocks();
+
+      // Override pulls.list for CC8.1 - 9 merged, 1 closed without merge = 90%
+      mockOctokit.pulls.list.mockResolvedValue({
+        data: [
+          ...Array.from({ length: 9 }, (_, i) => ({
+            number: i + 1,
+            title: `PR ${i + 1}`,
+            merged_at: '2024-01-01T00:00:00Z',
+            created_at: '2024-01-01T00:00:00Z',
+          })),
+          {
+            number: 10,
+            title: 'Closed PR',
+            merged_at: null,
+            created_at: '2024-01-01T00:00:00Z',
+          },
+        ],
+      });
+
+      const report = await collector.collect();
+      const cc81Result = report.evaluations.find((c) => c.controlId === 'CC8.1');
+
+      expect(cc81Result).toBeDefined();
+      expect(cc81Result?.result).toBe(ControlResult.PASS);
+      expect(cc81Result?.notes).toContain('90%');
+    });
+
+    it('should FAIL when no PRs exist', async () => {
+      setupDefaultMocks();
+
+      mockOctokit.pulls.list.mockResolvedValue({ data: [] });
+
+      const report = await collector.collect();
+      const cc81Result = report.evaluations.find((c) => c.controlId === 'CC8.1');
+
+      expect(cc81Result).toBeDefined();
+      expect(cc81Result?.result).toBe(ControlResult.FAIL);
+      expect(cc81Result?.findings?.length).toBeGreaterThan(0);
+    });
+
+    it('should return PARTIAL when merge rate is between 50% and 80%', async () => {
+      setupDefaultMocks();
+
+      // 6 merged, 4 closed = 60%
+      mockOctokit.pulls.list.mockResolvedValue({
+        data: [
+          ...Array.from({ length: 6 }, (_, i) => ({
+            number: i + 1,
+            title: `Merged PR ${i + 1}`,
+            merged_at: '2024-01-01T00:00:00Z',
+            created_at: '2024-01-01T00:00:00Z',
+          })),
+          ...Array.from({ length: 4 }, (_, i) => ({
+            number: i + 7,
+            title: `Closed PR ${i + 7}`,
+            merged_at: null,
+            created_at: '2024-01-01T00:00:00Z',
+          })),
+        ],
+      });
+
+      const report = await collector.collect();
+      const cc81Result = report.evaluations.find((c) => c.controlId === 'CC8.1');
+
+      expect(cc81Result).toBeDefined();
+      expect(cc81Result?.result).toBe(ControlResult.PARTIAL);
+    });
+  });
+
+    describe('CC1.1 - Code Review Process', () => {
     it('should PASS when branch protection requires approval', async () => {
       setupDefaultMocks();
 

@@ -58,6 +58,16 @@ const ISO27001_CONTROL_DEFS: Record<string, ISO27001ControlDef> = {
     description: 'Changes are controlled through formal change management procedures',
     category: 'Operations Security',
   },
+  'A.12.2.1': {
+    name: 'Controls Against Malware',
+    description: 'Security scanning workflows detect and prevent malware',
+    category: 'Operations Security',
+  },
+  'A.12.4.1': {
+    name: 'Event Logging',
+    description: 'CI/CD workflow activity and commit history provide event logging',
+    category: 'Operations Security',
+  },
   'A.12.6.1': {
     name: 'Management of Technical Vulnerabilities',
     description: 'Technical vulnerabilities are identified and remediated',
@@ -146,6 +156,22 @@ export class ISO27001Collector {
     } catch (error) {
       logger.error('Failed to evaluate A.12.1.2', error instanceof Error ? error : undefined);
       evaluations.push(this.createErrorResult('A.12.1.2', error));
+    }
+
+    try {
+      const a12_2_1 = await this.evaluateA12_2_1();
+      evaluations.push(a12_2_1);
+    } catch (error) {
+      logger.error('Failed to evaluate A.12.2.1', error instanceof Error ? error : undefined);
+      evaluations.push(this.createErrorResult('A.12.2.1', error));
+    }
+
+    try {
+      const a12_4_1 = await this.evaluateA12_4_1();
+      evaluations.push(a12_4_1);
+    } catch (error) {
+      logger.error('Failed to evaluate A.12.4.1', error instanceof Error ? error : undefined);
+      evaluations.push(this.createErrorResult('A.12.4.1', error));
     }
 
     try {
@@ -392,6 +418,101 @@ export class ISO27001Collector {
       evidence,
       notes: `${Math.round(reviewRate)}% of recent PRs had approved reviews.`,
       findings: pass ? [] : ['Ensure all changes go through reviewed PRs'],
+      evaluatedAt: new Date().toISOString(),
+    };
+  }
+
+  /**
+   * A.12.2.1 - Controls Against Malware
+   * Check: Security scanning workflows exist (security/scan/codeql/snyk/dependabot)
+   */
+  private async evaluateA12_2_1(): Promise<ControlEvaluation> {
+    const control = ISO27001_CONTROL_DEFS['A.12.2.1'];
+
+    const { data: workflows } = await this.octokit.actions.listRepoWorkflows({
+      owner: this.config.owner,
+      repo: this.config.repo,
+    });
+
+    const securityKeywords = ['security', 'scan', 'codeql', 'snyk', 'dependabot'];
+    const securityWorkflows = workflows.workflows.filter(
+      (w) =>
+        securityKeywords.some((kw) => w.name.toLowerCase().includes(kw)) ||
+        securityKeywords.some((kw) => (w.path ?? '').toLowerCase().includes(kw))
+    );
+
+    const evidence: EvidenceArtifact[] = [
+      this.createEvidence('api_response', 'github_workflows', {
+        total_workflows: workflows.total_count,
+        security_workflows: securityWorkflows.map((w) => w.name),
+      }),
+    ];
+
+    const pass = securityWorkflows.length > 0;
+
+    return {
+      controlId: 'A.12.2.1',
+      controlName: control.name,
+      framework: ComplianceFramework.ISO27001,
+      result: pass ? ControlResult.PASS : ControlResult.FAIL,
+      evidence,
+      notes: pass
+        ? `${securityWorkflows.length} security scanning workflow(s) found.`
+        : 'No security scanning workflows detected.',
+      findings: pass ? [] : ['Add security scanning workflows (e.g., CodeQL, Snyk, Dependabot)'],
+      evaluatedAt: new Date().toISOString(),
+    };
+  }
+
+  /**
+   * A.12.4.1 - Event Logging
+   * Check: CI/CD workflows running and recent commit activity
+   */
+  private async evaluateA12_4_1(): Promise<ControlEvaluation> {
+    const control = ISO27001_CONTROL_DEFS['A.12.4.1'];
+
+    const { data: workflows } = await this.octokit.actions.listRepoWorkflows({
+      owner: this.config.owner,
+      repo: this.config.repo,
+    });
+
+    const activeWorkflows = workflows.workflows.filter((w) => w.state === 'active');
+
+    // Check recent commit activity as indicator of event logging
+    let recentCommits = 0;
+    try {
+      const { data: commits } = await this.octokit.repos.listCommits({
+        owner: this.config.owner,
+        repo: this.config.repo,
+        per_page: 10,
+      });
+      recentCommits = commits.length;
+    } catch {
+      // Ignore if we cannot fetch commits
+    }
+
+    const evidence: EvidenceArtifact[] = [
+      this.createEvidence('api_response', 'github_activity', {
+        total_workflows: workflows.total_count,
+        active_workflows: activeWorkflows.map((w) => w.name),
+        recent_commits: recentCommits,
+      }),
+    ];
+
+    const hasWorkflows = activeWorkflows.length > 0;
+    const hasActivity = recentCommits > 0;
+    const pass = hasWorkflows && hasActivity;
+
+    return {
+      controlId: 'A.12.4.1',
+      controlName: control.name,
+      framework: ComplianceFramework.ISO27001,
+      result: pass ? ControlResult.PASS : ControlResult.FAIL,
+      evidence,
+      notes: pass
+        ? `${activeWorkflows.length} active workflow(s) with recent commit activity.`
+        : 'No active workflows or no recent activity detected.',
+      findings: pass ? [] : ['Enable CI/CD workflows and ensure regular commit activity for event logging'],
       evaluatedAt: new Date().toISOString(),
     };
   }

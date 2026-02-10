@@ -37,6 +37,7 @@ function buildMockOctokit() {
       get: jest.fn().mockResolvedValue({
         data: { security_and_analysis: null },
       }),
+      listCommits: jest.fn().mockResolvedValue({ data: [] }),
     },
     pulls: {
       list: jest.fn().mockResolvedValue({ data: [] }),
@@ -77,14 +78,14 @@ describe('ISO27001Collector', () => {
   });
 
   describe('collect', () => {
-    it('should collect evidence for all 9 ISO27001 controls', async () => {
+    it('should collect evidence for all 11 ISO27001 controls', async () => {
       const collector = new ISO27001Collector(baseConfig);
       const report = await collector.collect();
 
       expect(report.framework).toBe(ComplianceFramework.ISO27001);
       expect(report.repository).toBe('test-owner/test-repo');
-      expect(report.evaluations).toHaveLength(9);
-      expect(report.summary.totalControls).toBe(9);
+      expect(report.evaluations).toHaveLength(11);
+      expect(report.summary.totalControls).toBe(11);
       expect(report.period).toBeDefined();
       expect(report.generatedAt).toBeDefined();
       expect(report.id).toMatch(/^iso27001-/);
@@ -126,7 +127,7 @@ describe('ISO27001Collector', () => {
       const report = await collector.collect();
 
       const { summary } = report;
-      expect(summary.totalControls).toBe(9);
+      expect(summary.totalControls).toBe(11);
       // All summary counts should add up to total
       const totalFromCounts =
         summary.passedControls +
@@ -155,13 +156,14 @@ describe('ISO27001Collector', () => {
       mockOctokitInstance.pulls.list.mockRejectedValue(apiError);
       mockOctokitInstance.issues.listForRepo.mockRejectedValue(apiError);
       mockOctokitInstance.actions.listRepoWorkflows.mockRejectedValue(apiError);
+      mockOctokitInstance.repos.listCommits.mockRejectedValue(apiError);
       mockOctokitInstance.rest.dependabot.listAlertsForRepo.mockRejectedValue(apiError);
 
       const collector = new ISO27001Collector(baseConfig);
       const report = await collector.collect();
 
       // Collection should still complete (no thrown error)
-      expect(report.evaluations).toHaveLength(9);
+      expect(report.evaluations).toHaveLength(11);
       // Controls that hit unexpected errors should get ERROR result
       const errorEvals = report.evaluations.filter(
         (e) => e.result === ControlResult.ERROR
@@ -183,7 +185,7 @@ describe('ISO27001Collector', () => {
       const report = await collector.collect();
 
       // All 9 controls should still be evaluated
-      expect(report.evaluations).toHaveLength(9);
+      expect(report.evaluations).toHaveLength(11);
 
       // A.9.2.3 (the one using listCollaborators) should be ERROR
       const a923 = report.evaluations.find((e) => e.controlId === 'A.9.2.3');
@@ -230,7 +232,10 @@ describe('ISO27001Collector', () => {
       });
       mockOctokitInstance.issues.listForRepo.mockResolvedValue({ data: [] });
       mockOctokitInstance.actions.listRepoWorkflows.mockResolvedValue({
-        data: { total_count: 1, workflows: [{ name: 'CI Tests' }] },
+        data: { total_count: 1, workflows: [{ name: 'CI Tests', state: 'active' }] },
+      });
+      mockOctokitInstance.repos.listCommits.mockResolvedValue({
+        data: [{ sha: 'abc123' }],
       });
       mockOctokitInstance.rest.dependabot.listAlertsForRepo.mockResolvedValue({
         data: [],
@@ -243,7 +248,7 @@ describe('ISO27001Collector', () => {
 
       // Should complete well under the default 30s timeout
       expect(duration).toBeLessThan(5000);
-      expect(report.evaluations).toHaveLength(9);
+      expect(report.evaluations).toHaveLength(11);
       // With all mocks returning good data, most controls should pass
       expect(report.summary.passedControls).toBeGreaterThan(0);
     }, 10000);
@@ -574,4 +579,93 @@ describe('ISO27001Collector', () => {
       expect(ctrl!.notes).toContain('20%');
     });
   });
+
+  describe('A.12.2.1 - Controls Against Malware', () => {
+    it('should PASS when security scanning workflow exists', async () => {
+      mockOctokitInstance = buildMockOctokit();
+      mockOctokitInstance.actions.listRepoWorkflows.mockResolvedValue({
+        data: {
+          total_count: 2,
+          workflows: [
+            { name: 'CodeQL Analysis', path: '.github/workflows/codeql.yml' },
+            { name: 'Build', path: '.github/workflows/build.yml' },
+          ],
+        },
+      });
+      (Octokit as unknown as jest.Mock).mockImplementation(() => mockOctokitInstance);
+
+      const collector = new ISO27001Collector(baseConfig);
+      const report = await collector.collect();
+      const ctrl = report.evaluations.find((e) => e.controlId === 'A.12.2.1');
+
+      expect(ctrl).toBeDefined();
+      expect(ctrl!.result).toBe(ControlResult.PASS);
+      expect(ctrl!.notes).toContain('security scanning workflow(s) found');
+    });
+
+    it('should FAIL when no workflows match security keywords', async () => {
+      mockOctokitInstance = buildMockOctokit();
+      mockOctokitInstance.actions.listRepoWorkflows.mockResolvedValue({
+        data: {
+          total_count: 1,
+          workflows: [
+            { name: 'Build', path: '.github/workflows/build.yml' },
+          ],
+        },
+      });
+      (Octokit as unknown as jest.Mock).mockImplementation(() => mockOctokitInstance);
+
+      const collector = new ISO27001Collector(baseConfig);
+      const report = await collector.collect();
+      const ctrl = report.evaluations.find((e) => e.controlId === 'A.12.2.1');
+
+      expect(ctrl).toBeDefined();
+      expect(ctrl!.result).toBe(ControlResult.FAIL);
+      expect(ctrl!.notes).toContain('No security scanning workflows');
+    });
+  });
+
+  describe('A.12.4.1 - Event Logging', () => {
+    it('should PASS when workflows exist and are active', async () => {
+      mockOctokitInstance = buildMockOctokit();
+      mockOctokitInstance.actions.listRepoWorkflows.mockResolvedValue({
+        data: {
+          total_count: 1,
+          workflows: [
+            { name: 'CI', path: '.github/workflows/ci.yml', state: 'active' },
+          ],
+        },
+      });
+      mockOctokitInstance.repos.listCommits.mockResolvedValue({
+        data: [{ sha: 'abc123' }, { sha: 'def456' }],
+      });
+      (Octokit as unknown as jest.Mock).mockImplementation(() => mockOctokitInstance);
+
+      const collector = new ISO27001Collector(baseConfig);
+      const report = await collector.collect();
+      const ctrl = report.evaluations.find((e) => e.controlId === 'A.12.4.1');
+
+      expect(ctrl).toBeDefined();
+      expect(ctrl!.result).toBe(ControlResult.PASS);
+      expect(ctrl!.notes).toContain('active workflow(s) with recent commit activity');
+    });
+
+    it('should FAIL when no workflows found', async () => {
+      mockOctokitInstance = buildMockOctokit();
+      mockOctokitInstance.actions.listRepoWorkflows.mockResolvedValue({
+        data: { total_count: 0, workflows: [] },
+      });
+      mockOctokitInstance.repos.listCommits.mockResolvedValue({ data: [] });
+      (Octokit as unknown as jest.Mock).mockImplementation(() => mockOctokitInstance);
+
+      const collector = new ISO27001Collector(baseConfig);
+      const report = await collector.collect();
+      const ctrl = report.evaluations.find((e) => e.controlId === 'A.12.4.1');
+
+      expect(ctrl).toBeDefined();
+      expect(ctrl!.result).toBe(ControlResult.FAIL);
+      expect(ctrl!.notes).toContain('No active workflows or no recent activity');
+    });
+  });
+
 });

@@ -15,15 +15,23 @@ export interface ComplianceData {
         total: number;
         passed: number;
         failed: number;
+        partial?: number;
         notApplicable: number;
     };
+    frameworkSummaries?: Array<{
+        framework: string;
+        total: number;
+        passed: number;
+        failed: number;
+    }>;
 }
 export interface ControlResult {
     id: string;
     name: string;
-    status: 'PASS' | 'FAIL' | 'NOT_APPLICABLE';
+    status: 'PASS' | 'FAIL' | 'PARTIAL' | 'NOT_APPLICABLE';
     evidence: string;
     severity: 'critical' | 'high' | 'medium' | 'low';
+    framework?: string;
     violations?: Violation[];
     recommendations?: string[];
 }
@@ -64,15 +72,18 @@ export declare class PDFGenerator {
      */
     private generateExecutiveSummary;
     /**
-     * Generate control-by-control findings
+     * Generate control-by-control findings grouped by framework
      */
     private generateControlFindings;
+    private groupControlsByFramework;
+    private drawFrameworkHeader;
+    private drawControlEntry;
     /**
      * Generate detailed violation information
      */
     private generateViolationDetails;
     /**
-     * Generate recommendations section
+     * Generate recommendations section grouped by framework
      */
     private generateRecommendations;
     private addPage;
