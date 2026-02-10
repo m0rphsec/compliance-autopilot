@@ -19,36 +19,49 @@ jobs:
       - uses: actions/checkout@v4
       - uses: m0rphsec/compliance-autopilot@v1
         with:
-          anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
-          frameworks: 'soc2,gdpr'
+          frameworks: 'soc2'
 ```
+
+> **Tip:** Add `anthropic-api-key` if you enable the GDPR framework. See [Configuration](#-configuration) for all options.
 
 ## ✨ Features
 
 ### 🎯 SOC2 Type II
-- ✅ All 64 Common Criteria automated
+- ✅ 10 Common Criteria controls automated
 - ✅ Code review enforcement (CC1.1)
+- ✅ Risk assessment (CC3.1)
+- ✅ Dependency risk management (CC5.2)
 - ✅ Deployment controls (CC6.1)
+- ✅ Environment protection (CC6.3)
 - ✅ Access management (CC6.6)
+- ✅ Secure SDLC (CC6.8)
 - ✅ System monitoring (CC7.1)
-- ✅ Change management (CC7.2)
-- ✅ Risk assessment (CC8.1)
+- ✅ Monitoring & anomaly detection (CC7.2)
+- ✅ Change management (CC8.1)
 
 ### 🔐 GDPR Compliance
-- ✅ PII detection in code (emails, SSNs, credit cards)
-- ✅ Encryption verification (HTTPS, TLS, database encryption)
-- ✅ Consent mechanism checks
-- ✅ Data flow mapping
-- ✅ Right to deletion validation
-- ✅ Data retention policy tracking
+- ✅ 7 Article-level controls automated
+- ✅ PII detection in code — Art. 6
+- ✅ Encryption in transit — Art. 5(1)(f)
+- ✅ Encryption at rest — Art. 32
+- ✅ Consent mechanism checks — Art. 7
+- ✅ Data retention policy tracking — Art. 5(1)(e)
+- ✅ Right to erasure validation — Art. 17
+- ✅ Privacy by design — Art. 25
 
 ### 📋 ISO 27001
-- ✅ 114 control monitoring
-- ✅ Security policy tracking
-- ✅ Incident response validation
-- ✅ Risk assessment automation
-- ✅ Access control verification
-- ✅ Cryptographic controls
+- ✅ 11 Annex A controls automated
+- ✅ Privileged access management (A.9.2.3)
+- ✅ Information access restriction (A.9.4.1)
+- ✅ Change management (A.12.1.2)
+- ✅ Malware controls (A.12.2.1)
+- ✅ Event logging (A.12.4.1)
+- ✅ Vulnerability management (A.12.6.1)
+- ✅ System change control (A.14.2.2)
+- ✅ Secure engineering principles (A.14.2.5)
+- ✅ Security testing (A.14.2.8)
+- ✅ Security event reporting (A.16.1.2)
+- ✅ Incident response (A.16.1.5)
 
 ## 📊 What You Get
 
@@ -92,6 +105,7 @@ Every PR gets an automated compliance report:
 ```yaml
 - uses: m0rphsec/compliance-autopilot@v1
   with:
+    anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
     frameworks: 'soc2,gdpr'
     slack-webhook: ${{ secrets.SLACK_WEBHOOK }}
 ```
@@ -100,6 +114,7 @@ Every PR gets an automated compliance report:
 ```yaml
 - uses: m0rphsec/compliance-autopilot@v1
   with:
+    anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
     frameworks: 'soc2,gdpr,iso27001'
     report-format: 'both'
     fail-on-violations: 'true'
@@ -149,6 +164,7 @@ jobs:
 - ✅ Unlimited scans
 - ✅ PDF + JSON reports
 - ✅ Slack integration
+- ✅ Custom controls
 - ✅ Priority support
 
 [Subscribe →](https://buy.stripe.com/5kQcN4fwO59mf2kcEg9bO02) | [Annual →](https://buy.stripe.com/fZucN40BU45i2fy7jW9bO03)
@@ -243,17 +259,7 @@ This action:
 
 ## 🚀 Getting Started
 
-### 1. Get an Anthropic API Key
-
-Sign up at [Anthropic Console](https://console.anthropic.com/) and create an API key.
-
-### 2. Add Secret to Repository
-
-Go to your repository → Settings → Secrets → Actions → New repository secret:
-- Name: `ANTHROPIC_API_KEY`
-- Value: Your API key
-
-### 3. Create Workflow
+### 1. Create Workflow
 
 Add `.github/workflows/compliance.yml`:
 
@@ -279,13 +285,22 @@ jobs:
 
       - uses: m0rphsec/compliance-autopilot@v1
         with:
-          anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
-          frameworks: 'soc2,gdpr'
+          frameworks: 'soc2'
           report-format: 'both'
           fail-on-violations: 'false'
 ```
 
-### 4. Open a Pull Request
+### 2. (Optional) Add an Anthropic API Key
+
+Only required if you enable the **GDPR** framework. Sign up at [Anthropic Console](https://console.anthropic.com/), then add the key to your repository:
+
+Settings → Secrets → Actions → New repository secret:
+- Name: `ANTHROPIC_API_KEY`
+- Value: Your API key
+
+Then add `anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}` and `frameworks: 'soc2,gdpr'` to your workflow step.
+
+### 3. Open a Pull Request
 
 The action will automatically run and post a compliance report!
 
