@@ -141,7 +141,7 @@ jobs:
 - ✅ PDF + JSON reports
 - ✅ Email support
 
-[Subscribe →](https://buy.stripe.com/PLACEHOLDER_BASIC_MONTHLY) | [Annual →](https://buy.stripe.com/PLACEHOLDER_BASIC_YEARLY)
+[Subscribe →](https://buy.stripe.com/cNi6oG84m45icUc8o09bO00) | [Annual →](https://buy.stripe.com/9B68wO3O66dq1buaw89bO01)
 
 ### Pro — $49.99/month ($499.99/year)
 - ✅ 5 private repositories
@@ -151,7 +151,7 @@ jobs:
 - ✅ Slack integration
 - ✅ Priority support
 
-[Subscribe →](https://buy.stripe.com/PLACEHOLDER_PRO_MONTHLY) | [Annual →](https://buy.stripe.com/PLACEHOLDER_PRO_YEARLY)
+[Subscribe →](https://buy.stripe.com/5kQcN4fwO59mf2kcEg9bO02) | [Annual →](https://buy.stripe.com/fZucN40BU45i2fy7jW9bO03)
 
 ### Enterprise — $149.99/month ($1,499.99/year)
 - ✅ Unlimited repositories
@@ -162,7 +162,7 @@ jobs:
 - ✅ Custom controls
 - ✅ SLA + dedicated support
 
-[Subscribe →](https://buy.stripe.com/PLACEHOLDER_ENTERPRISE_MONTHLY) | [Annual →](https://buy.stripe.com/PLACEHOLDER_ENTERPRISE_YEARLY)
+[Subscribe →](https://buy.stripe.com/3cIdR8doG7hu4nGfQs9bO04) | [Annual →](https://buy.stripe.com/bJe7sKesKeJW6vO47K9bO05)
 
 ## 🎯 Who This Is For
 
