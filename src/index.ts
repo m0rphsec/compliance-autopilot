@@ -446,7 +446,10 @@ async function collectEvidence(
  * Build proper GDPR ControlEvaluation entries from scan results.
  * Maps GDPR collector findings to specific GDPR articles.
  */
-function buildGDPREvaluations(result: GDPRCollectorResult, sourceFiles: Array<{ code: string; path: string }>): ControlEvaluation[] {
+function buildGDPREvaluations(
+  result: GDPRCollectorResult,
+  sourceFiles: Array<{ code: string; path: string }>,
+): ControlEvaluation[] {
   const now = new Date().toISOString();
   const noPII = result.summary.files_with_pii === 0;
 
@@ -644,7 +647,9 @@ function buildGDPREvaluations(result: GDPRCollectorResult, sourceFiles: Array<{ 
     controlId: 'GDPR-Art25',
     controlName: 'Data Protection by Design (Art. 25)',
     framework: CFEnum.GDPR,
-    result: dpbdPass ? ControlResult.PASS : dpbdPartial ? ControlResult.PARTIAL : ControlResult.FAIL,
+    result: dpbdPass ? ControlResult.PASS
+      : dpbdPartial ? ControlResult.PARTIAL
+      : ControlResult.FAIL,
     evidence: [],
     evaluatedAt: now,
     notes: dpbdPass
@@ -775,7 +780,9 @@ async function generateReports(
       summary: {
         total: report.totalControls,
         passed: report.passedControls,
-        failed: report.frameworks.reduce((sum, fw) => sum + fw.failedControls + fw.errorControls, 0),
+        failed: report.frameworks.reduce(
+          (sum, fw) => sum + fw.failedControls + fw.errorControls, 0,
+        ),
         partial: report.frameworks.reduce((sum, fw) => sum + fw.warnControls, 0),
         notApplicable: report.frameworks.reduce((sum, fw) => sum + fw.skippedControls, 0),
       },

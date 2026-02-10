@@ -402,7 +402,9 @@ export class PDFGenerator {
       this.drawFrameworkHeader(fw, controls, data.frameworkSummaries);
 
       // Sort: PASS first, then PARTIAL, then FAIL
-      const statusOrder: Record<string, number> = { PASS: 0, PARTIAL: 1, FAIL: 2, NOT_APPLICABLE: 3 };
+      const statusOrder: Record<string, number> = {
+        PASS: 0, PARTIAL: 1, FAIL: 2, NOT_APPLICABLE: 3,
+      };
       const sorted = [...controls].sort(
         (a, b) => (statusOrder[a.status] ?? 4) - (statusOrder[b.status] ?? 4)
       );
@@ -788,7 +790,10 @@ export class PDFGenerator {
     }
     boxes.push({ label: 'N/A', value: summary.notApplicable, color: COLORS.textLight });
 
-    const boxWidth = Math.min(100, (this.getPageWidth() - MARGINS.left - MARGINS.right - spacing * (boxes.length - 1)) / boxes.length);
+    const availableWidth = this.getPageWidth()
+      - MARGINS.left - MARGINS.right
+      - spacing * (boxes.length - 1);
+    const boxWidth = Math.min(100, availableWidth / boxes.length);
 
     boxes.forEach((box, i) => {
       const x = startX + i * (boxWidth + spacing);
