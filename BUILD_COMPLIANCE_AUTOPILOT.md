@@ -302,7 +302,7 @@ compliance-autopilot/
 ```yaml
 name: 'Compliance Autopilot'
 description: 'Automate SOC2, GDPR, and ISO27001 compliance evidence collection'
-author: 'YourUsername'
+author: 'm0rphsec'
 branding:
   icon: 'shield'
   color: 'blue'
@@ -383,8 +383,8 @@ npm run validate       # Final validation
 **Automate SOC2, GDPR, and ISO27001 compliance evidence collection. Pass audits without the pain.**
 
 [![GitHub Marketplace](https://img.shields.io/badge/Marketplace-Compliance%20Autopilot-blue.svg?colorA=24292e&colorB=0366d6&style=flat&longCache=true&logo=github)](https://github.com/marketplace/actions/compliance-autopilot)
-[![Test Status](https://github.com/YourUsername/compliance-autopilot/workflows/test/badge.svg)](https://github.com/YourUsername/compliance-autopilot/actions)
-[![Coverage](https://img.shields.io/codecov/c/github/YourUsername/compliance-autopilot)](https://codecov.io/gh/YourUsername/compliance-autopilot)
+[![Test Status](https://github.com/m0rphsec/compliance-autopilot/workflows/test/badge.svg)](https://github.com/m0rphsec/compliance-autopilot/actions)
+[![Coverage](https://img.shields.io/codecov/c/github/m0rphsec/compliance-autopilot)](https://codecov.io/gh/m0rphsec/compliance-autopilot)
 
 ![Demo](./assets/demo.gif)
 
@@ -398,7 +398,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: YourUsername/compliance-autopilot@v1
+      - uses: m0rphsec/compliance-autopilot@v1
         with:
           anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
           frameworks: 'soc2,gdpr'
@@ -456,7 +456,7 @@ Every PR gets an automated compliance report:
 
 ### Preparing for SOC2
 ```yaml
-- uses: YourUsername/compliance-autopilot@v1
+- uses: m0rphsec/compliance-autopilot@v1
   with:
     frameworks: 'soc2'
     report-format: 'pdf'
@@ -465,7 +465,7 @@ Every PR gets an automated compliance report:
 
 ### GDPR + SOC2 Combo
 ```yaml
-- uses: YourUsername/compliance-autopilot@v1
+- uses: m0rphsec/compliance-autopilot@v1
   with:
     frameworks: 'soc2,gdpr'
     slack-webhook: ${{ secrets.SLACK_WEBHOOK }}
@@ -553,13 +553,13 @@ This action:
 
 ## 🤝 Support
 
-- 📧 Email: support@compliance-autopilot.com
+- 📧 Support: [GitHub Issues](https://github.com/m0rphsec/compliance-autopilot/issues)
 - 💬 Discord: [Join Community](https://discord.gg/compliance-autopilot)
-- 🐛 Issues: [GitHub Issues](https://github.com/YourUsername/compliance-autopilot/issues)
+- 🐛 Issues: [GitHub Issues](https://github.com/m0rphsec/compliance-autopilot/issues)
 
 ## 📜 License
 
-MIT © [YourUsername](https://github.com/YourUsername)
+MIT © [m0rphsec](https://github.com/m0rphsec)
 
 ---
 

@@ -534,7 +534,7 @@ These steps **cannot be automated** and require human action:
      - Performance metrics
 
 8. **Support Infrastructure**
-   - Set up support email (support@compliance-autopilot.com)
+   - Set up support email ([GitHub Issues](https://github.com/m0rphsec/compliance-autopilot/issues))
    - Create Discord/Slack community (optional)
    - Set up GitHub Discussions or Issues for support
    - Create templates for bug reports and feature requests

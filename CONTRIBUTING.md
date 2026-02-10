@@ -402,7 +402,7 @@ Any other relevant info
 **DO NOT** open public issues for security vulnerabilities.
 
 Instead:
-1. Email: security@compliance-autopilot.com
+1. Report via [GitHub Security Advisories](https://github.com/m0rphsec/compliance-autopilot/security/advisories/new)
 2. Include detailed description
 3. Include steps to reproduce
 4. We'll respond within 48 hours

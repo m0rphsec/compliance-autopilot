@@ -321,8 +321,91 @@ async function handleCheckoutCompleted(session, env) {
 
   console.log(`License created: ${licenseKey} (${tier}) for ${customerEmail}`);
 
-  // TODO: Send email with license key to customer
-  // This would require an email service integration (e.g., SendGrid, Postmark)
+  // Send license key via email (non-blocking)
+  if (customerEmail) {
+    await sendLicenseEmail(customerEmail, licenseKey, tier, env).catch(err => {
+      console.error('Email send failed but license was created:', err);
+    });
+  } else {
+    console.warn('No customer email - license created but email not sent');
+  }
+}
+
+/**
+ * Send license key email via Resend
+ */
+async function sendLicenseEmail(customerEmail, licenseKey, tier, env) {
+  if (!env.RESEND_API_KEY) {
+    console.warn('RESEND_API_KEY not configured - skipping email');
+    return false;
+  }
+
+  const tierName = tier.charAt(0).toUpperCase() + tier.slice(1);
+  const emailHtml = `<!DOCTYPE html>
+<html>
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
+<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f7fafc; margin: 0; padding: 20px;">
+  <div style="max-width: 600px; margin: 0 auto; background: white; border-radius: 8px; padding: 32px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+    <div style="text-align: center; margin-bottom: 24px;">
+      <h1 style="color: #1a56db; margin: 0;">Compliance Autopilot</h1>
+    </div>
+    <h2 style="color: #2d3748;">Welcome to the ${tierName} Plan!</h2>
+    <p style="color: #4a5568; line-height: 1.6;">Thank you for subscribing. Your license has been activated and is ready to use.</p>
+    <div style="background: #f7fafc; border-left: 4px solid #1a56db; padding: 16px; margin: 24px 0; border-radius: 4px;">
+      <h3 style="color: #2d3748; margin: 0 0 12px 0;">Your License Key</h3>
+      <div style="background: white; padding: 12px; border-radius: 4px; font-family: 'Courier New', monospace; font-size: 18px; color: #d53f8c; word-break: break-all;">${licenseKey}</div>
+    </div>
+    <div style="background: #fffbeb; border-left: 4px solid #f59e0b; padding: 16px; margin: 24px 0; border-radius: 4px;">
+      <h3 style="color: #92400e; margin: 0 0 12px 0;">Quick Setup (2 minutes)</h3>
+      <ol style="color: #78350f; margin: 0; padding-left: 20px; line-height: 1.8;">
+        <li>Go to your GitHub repository</li>
+        <li>Click <strong>Settings</strong> &rarr; <strong>Secrets and variables</strong> &rarr; <strong>Actions</strong></li>
+        <li>Click <strong>New repository secret</strong></li>
+        <li>Name: <code style="background: #fef3c7; padding: 2px 6px; border-radius: 3px;">LICENSE_KEY</code></li>
+        <li>Value: Paste your license key above</li>
+        <li>Add <code style="background: #fef3c7; padding: 2px 6px; border-radius: 3px;">license-key: \${{ secrets.LICENSE_KEY }}</code> to your workflow</li>
+      </ol>
+    </div>
+    <div style="margin: 24px 0;">
+      <p style="margin-bottom: 8px;"><a href="https://github.com/m0rphsec/compliance-autopilot#-quick-start" style="color: #1a56db;">Quick Start Guide</a></p>
+      <p style="margin-bottom: 8px;"><a href="https://github.com/m0rphsec/compliance-autopilot/tree/main/docs" style="color: #1a56db;">Full Documentation</a></p>
+      <p style="margin-bottom: 8px;"><a href="https://github.com/m0rphsec/compliance-autopilot/issues" style="color: #1a56db;">Support &amp; Issues</a></p>
+    </div>
+    <div style="border-top: 1px solid #e2e8f0; padding-top: 16px; margin-top: 24px; color: #718096; font-size: 14px; text-align: center;">
+      <p style="margin: 0;">Keep this email for your records.</p>
+    </div>
+  </div>
+</body>
+</html>`;
+
+  try {
+    const response = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${env.RESEND_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        from: 'Compliance Autopilot <onboarding@resend.dev>',
+        to: customerEmail,
+        subject: `Your Compliance Autopilot License Key - ${tierName} Plan`,
+        html: emailHtml,
+      }),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Resend API error:', response.status, errorText);
+      return false;
+    }
+
+    const result = await response.json();
+    console.log('License email sent:', result.id);
+    return true;
+  } catch (error) {
+    console.error('Failed to send license email:', error);
+    return false;
+  }
 }
 
 /**
@@ -673,7 +756,7 @@ async function handleSuccess(url, env, corsHeaders) {
         <h1>Thank you for subscribing!</h1>
         <p>Welcome to Compliance Autopilot. Your subscription has been activated successfully.</p>
 
-        ${sessionId ? '<p class="email-notice"><strong>📧 Your license key has been emailed to you.</strong> If you don\'t see it, check your spam folder or use the lookup link below.</p>' : ''}
+        ${sessionId ? '<p class="email-notice"><strong>📧 Your license key is being generated and will be emailed to you shortly.</strong> If you don\'t receive it within 5 minutes, check your spam folder or use the lookup link below.</p>' : ''}
 
         <div class="info-box">
             <h2>Next Steps: Add Your License Key</h2>
@@ -692,7 +775,7 @@ async function handleSuccess(url, env, corsHeaders) {
 
         ${!sessionId ? '<p><strong>Lost your license key?</strong> Contact support with your email address to retrieve it.</p>' : ''}
 
-        <a href="https://github.com/YOUR_ORG/compliance-autopilot" class="button">View Documentation</a>
+        <a href="https://github.com/m0rphsec/compliance-autopilot" class="button">View Documentation</a>
     </div>
 </body>
 </html>
@@ -1125,7 +1208,7 @@ async function handlePortal(url, env, corsHeaders) {
 
         <p>To make changes to your subscription, please contact our support team with your account details.</p>
 
-        <a href="https://github.com/YOUR_ORG/compliance-autopilot/issues" class="button">Contact Support</a>
+        <a href="https://github.com/m0rphsec/compliance-autopilot/issues" class="button">Contact Support</a>
     </div>
 </body>
 </html>

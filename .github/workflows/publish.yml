@@ -46,10 +46,9 @@ jobs:
           git diff --staged --quiet || git commit -m "Build: Update dist for ${{ github.event.release.tag_name }}"
 
       - name: Push changes
-        uses: ad-m/github-push-action@master
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          branch: ${{ github.ref }}
+        run: git push
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Create release assets
         run: |
@@ -60,14 +59,10 @@ jobs:
             LICENSE
 
       - name: Upload release assets
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        uses: softprops/action-gh-release@v2
         with:
-          upload_url: ${{ github.event.release.upload_url }}
-          asset_path: ./compliance-autopilot-${{ github.event.release.tag_name }}.tar.gz
-          asset_name: compliance-autopilot-${{ github.event.release.tag_name }}.tar.gz
-          asset_content_type: application/gzip
+          files: ./compliance-autopilot-${{ github.event.release.tag_name }}.tar.gz
+          token: ${{ secrets.GITHUB_TOKEN }}
 
   notify:
     name: Notify Release

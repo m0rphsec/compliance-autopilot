@@ -127,35 +127,42 @@ jobs:
 
 ### Free Tier
 - ✅ Public repositories
-- ✅ SOC2 framework
+- ✅ SOC2 framework only
 - ✅ 100 scans/month
 - ✅ JSON reports
 - ✅ Community support
 
-### Starter - $149/month
+[Get Started Free →](https://github.com/m0rphsec/compliance-autopilot#-quick-start)
+
+### Basic — $19.99/month ($199.99/year)
 - ✅ 1 private repository
-- ✅ SOC2 + GDPR + ISO27001 (all frameworks)
+- ✅ All frameworks (SOC2 + GDPR + ISO27001)
 - ✅ Unlimited scans
-- ✅ PDF reports
+- ✅ PDF + JSON reports
 - ✅ Email support
 
-### Professional - $299/month
+[Subscribe →](https://buy.stripe.com/PLACEHOLDER_BASIC_MONTHLY) | [Annual →](https://buy.stripe.com/PLACEHOLDER_BASIC_YEARLY)
+
+### Pro — $49.99/month ($499.99/year)
 - ✅ 5 private repositories
-- ✅ SOC2 + GDPR + ISO27001 (all frameworks)
+- ✅ All frameworks (SOC2 + GDPR + ISO27001)
 - ✅ Unlimited scans
+- ✅ PDF + JSON reports
 - ✅ Slack integration
-- ✅ Custom controls
 - ✅ Priority support
 
-### Enterprise - Custom
-- ✅ Unlimited repositories
-- ✅ SOC2 + GDPR + ISO27001 (all frameworks)
-- ✅ Custom control mappings
-- ✅ SLA + dedicated support
-- ✅ On-premise deployment
-- ✅ White-label reports
+[Subscribe →](https://buy.stripe.com/PLACEHOLDER_PRO_MONTHLY) | [Annual →](https://buy.stripe.com/PLACEHOLDER_PRO_YEARLY)
 
-[Get Started →](https://github.com/m0rphsec/compliance-autopilot)
+### Enterprise — $149.99/month ($1,499.99/year)
+- ✅ Unlimited repositories
+- ✅ All frameworks (SOC2 + GDPR + ISO27001)
+- ✅ Unlimited scans
+- ✅ PDF + JSON reports
+- ✅ Slack integration
+- ✅ Custom controls
+- ✅ SLA + dedicated support
+
+[Subscribe →](https://buy.stripe.com/PLACEHOLDER_ENTERPRISE_MONTHLY) | [Annual →](https://buy.stripe.com/PLACEHOLDER_ENTERPRISE_YEARLY)
 
 ## 🎯 Who This Is For
 

@@ -8,9 +8,8 @@
 
 If you discover a security vulnerability, please report it privately:
 
-1. **Email**: security@compliance-autopilot.com
-2. **Subject**: "Security Vulnerability: [Brief Description]"
-3. **Include**:
+1. [Report a Vulnerability](https://github.com/m0rphsec/compliance-autopilot/security/advisories/new) via GitHub Security Advisories
+2. **Include**:
    - Detailed description of the vulnerability
    - Steps to reproduce the issue
    - Potential impact assessment

@@ -206,10 +206,10 @@ First production-ready release of Compliance Autopilot - automated SOC2, GDPR, a
 
 ### 🔗 Resources
 
-- Repository: https://github.com/yourusername/compliance-autopilot
+- Repository: https://github.com/m0rphsec/compliance-autopilot
 - Marketplace: https://github.com/marketplace/actions/compliance-autopilot
-- Documentation: https://github.com/yourusername/compliance-autopilot/docs
-- Issues: https://github.com/yourusername/compliance-autopilot/issues
+- Documentation: https://github.com/m0rphsec/compliance-autopilot/docs
+- Issues: https://github.com/m0rphsec/compliance-autopilot/issues
 - Discord: https://discord.gg/compliance-autopilot
 
 ---
@@ -281,4 +281,4 @@ Special thanks to:
 
 ---
 
-[1.0.0]: https://github.com/yourusername/compliance-autopilot/releases/tag/v1.0.0
+[1.0.0]: https://github.com/m0rphsec/compliance-autopilot/releases/tag/v1.0.0

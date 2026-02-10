@@ -36,13 +36,13 @@ cd infrastructure/cloudflare-worker
 wrangler deploy
 ```
 
-You'll get a URL like: `https://compliance-autopilot-license.YOUR-SUBDOMAIN.workers.dev`
+You'll get a URL like: `https://compliance-autopilot-license.taylsec.workers.dev`
 
 ### 5. Update the Action
 
 Update the license validation endpoint in `src/licensing/validator.ts`:
 ```typescript
-const DEFAULT_LICENSE_API = 'https://compliance-autopilot-license.YOUR-SUBDOMAIN.workers.dev/validate';
+const DEFAULT_LICENSE_API = 'https://compliance-autopilot-license.taylsec.workers.dev/validate';
 ```
 
 ### 6. Configure Stripe Webhook
@@ -56,7 +56,7 @@ In Stripe Dashboard (https://dashboard.stripe.com/webhooks):
    - `customer.subscription.updated`
    - `customer.subscription.deleted`
 4. Destination type: **Webhook endpoint**
-5. Set endpoint URL: `https://compliance-autopilot-license.YOUR-SUBDOMAIN.workers.dev/webhook/stripe`
+5. Set endpoint URL: `https://compliance-autopilot-license.taylsec.workers.dev/webhook/stripe`
 6. After creation, reveal the **Signing secret** (`whsec_...`)
 
 ### 7. Add Secrets
@@ -87,7 +87,7 @@ const tierMap = {
 
 ## Custom Domain (Optional)
 
-To use `license.compliance-autopilot.com`:
+To use `compliance-autopilot-license.taylsec.workers.dev`:
 
 1. Add domain to Cloudflare
 2. Add a route in `wrangler.toml`
@@ -97,24 +97,24 @@ To use `license.compliance-autopilot.com`:
 
 Test the health endpoint:
 ```bash
-curl https://compliance-autopilot-license.YOUR-SUBDOMAIN.workers.dev/health
+curl https://compliance-autopilot-license.taylsec.workers.dev/health
 ```
 
 Test license validation:
 ```bash
-curl https://compliance-autopilot-license.YOUR-SUBDOMAIN.workers.dev/validate?key=test-key
+curl https://compliance-autopilot-license.taylsec.workers.dev/validate?key=test-key
 ```
 
 ## Admin Endpoints
 
 Create a license manually:
 ```bash
-curl -X POST "https://compliance-autopilot-license.YOUR-SUBDOMAIN.workers.dev/admin/license?admin_token=YOUR_TOKEN" \
+curl -X POST "https://compliance-autopilot-license.taylsec.workers.dev/admin/license?admin_token=YOUR_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"key":"TEST-PRO-001","tier":"pro"}'
 ```
 
 Look up a license:
 ```bash
-curl "https://compliance-autopilot-license.YOUR-SUBDOMAIN.workers.dev/admin/license?admin_token=YOUR_TOKEN&key=TEST-PRO-001"
+curl "https://compliance-autopilot-license.taylsec.workers.dev/admin/license?admin_token=YOUR_TOKEN&key=TEST-PRO-001"
 ```

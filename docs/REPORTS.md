@@ -507,7 +507,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: YourUsername/compliance-autopilot@v1
+      - uses: m0rphsec/compliance-autopilot@v1
         with:
           frameworks: 'soc2,gdpr,iso27001'
           fail-on-violations: 'false'
@@ -613,6 +613,5 @@ timestamp: data.timestamp.toISOString()
 ## Support
 
 For issues or questions:
-- 📧 Email: support@compliance-autopilot.com
-- 🐛 Issues: https://github.com/YourUsername/compliance-autopilot/issues
-- 📚 Docs: https://docs.compliance-autopilot.com
+- 🐛 Issues: [GitHub Issues](https://github.com/m0rphsec/compliance-autopilot/issues)
+- 📚 Docs: https://github.com/m0rphsec/compliance-autopilot/tree/main/docs

@@ -39,7 +39,7 @@ jobs:
           fetch-depth: 0  # Full history for accurate analysis
 
       - name: Run SOC2 Compliance Check
-        uses: yourusername/compliance-autopilot@v1
+        uses: m0rphsec/compliance-autopilot@v1
         with:
           anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
           frameworks: 'soc2'
@@ -95,7 +95,7 @@ jobs:
 
       - name: Run GDPR + SOC2 Check
         id: compliance
-        uses: yourusername/compliance-autopilot@v1
+        uses: m0rphsec/compliance-autopilot@v1
         with:
           anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
           frameworks: 'soc2,gdpr'
@@ -160,7 +160,7 @@ jobs:
 
       - name: Run Full Compliance Scan
         id: scan
-        uses: yourusername/compliance-autopilot@v1
+        uses: m0rphsec/compliance-autopilot@v1
         with:
           anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
           frameworks: 'soc2,gdpr,iso27001'
@@ -260,7 +260,7 @@ jobs:
 
       - name: Run Compliance Check with Slack
         id: compliance
-        uses: yourusername/compliance-autopilot@v1
+        uses: m0rphsec/compliance-autopilot@v1
         with:
           anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
           frameworks: 'soc2,gdpr'
@@ -375,7 +375,7 @@ jobs:
 
       - name: Run Standard Compliance
         id: standard
-        uses: yourusername/compliance-autopilot@v1
+        uses: m0rphsec/compliance-autopilot@v1
         with:
           anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
           frameworks: 'soc2,gdpr'
@@ -517,13 +517,13 @@ jobs:
 
       - name: Run Basic Check for Feature Branches
         if: github.ref != 'refs/heads/main'
-        uses: yourusername/compliance-autopilot@v1
+        uses: m0rphsec/compliance-autopilot@v1
         with:
           frameworks: 'soc2'
 
       - name: Run Full Check for Main
         if: github.ref == 'refs/heads/main'
-        uses: yourusername/compliance-autopilot@v1
+        uses: m0rphsec/compliance-autopilot@v1
         with:
           frameworks: 'soc2,gdpr,iso27001'
 ```
@@ -535,7 +535,7 @@ jobs:
   if: |
     steps.compliance.outputs.compliance-status == 'FAIL' &&
     github.ref == 'refs/heads/main'
-  uses: yourusername/compliance-autopilot@v1
+  uses: m0rphsec/compliance-autopilot@v1
   with:
     slack-webhook: ${{ secrets.SLACK_WEBHOOK }}
 ```
@@ -562,7 +562,7 @@ jobs:
 
 ```yaml
 - name: Run with Debug Logging
-  uses: yourusername/compliance-autopilot@v1
+  uses: m0rphsec/compliance-autopilot@v1
   with:
     anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
     frameworks: 'soc2'
@@ -574,7 +574,7 @@ jobs:
 
 ```yaml
 - name: Run with Extended Timeout
-  uses: yourusername/compliance-autopilot@v1
+  uses: m0rphsec/compliance-autopilot@v1
   timeout-minutes: 30  # Default is 15
   with:
     anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
@@ -607,7 +607,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: yourusername/compliance-autopilot@v1
+      - uses: m0rphsec/compliance-autopilot@v1
         with:
           anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
           frameworks: ${{ inputs.frameworks }}
@@ -622,4 +622,4 @@ jobs:
 - [TROUBLESHOOTING.md](./TROUBLESHOOTING.md) - Common issues and solutions
 - [CONTROLS.md](./CONTROLS.md) - Complete control mappings
 
-For more examples, see the [demo repository](https://github.com/yourusername/compliance-autopilot-demo).
+For more examples, see the [demo repository](https://github.com/m0rphsec/compliance-autopilot-demo).

@@ -144,7 +144,7 @@ async function run(): Promise<void> {
         logger.info(upgradePrompt);
         core.setFailed(
           'Private repository scanning requires a paid license. ' +
-            'Get one at https://compliance-autopilot.com/pricing'
+            'Get one at https://github.com/m0rphsec/compliance-autopilot#-pricing'
         );
         return;
       }

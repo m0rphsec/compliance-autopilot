@@ -42,7 +42,7 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-      - uses: yourusername/compliance-autopilot@v1
+      - uses: m0rphsec/compliance-autopilot@v1
         with:
           anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
 ```
@@ -57,7 +57,7 @@ jobs:
 
 3. Use in workflow:
 ```yaml
-- uses: yourusername/compliance-autopilot@v1
+- uses: m0rphsec/compliance-autopilot@v1
   with:
     github-token: ${{ secrets.PAT_TOKEN }}
     anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
@@ -86,7 +86,7 @@ AnthropicError: Request timed out
 
 Add timeout configuration:
 ```yaml
-- uses: yourusername/compliance-autopilot@v1
+- uses: m0rphsec/compliance-autopilot@v1
   timeout-minutes: 30  # Default is 15
   with:
     anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
@@ -101,7 +101,7 @@ Only analyze changed files:
   uses: tj-actions/changed-files@v41
 
 - name: Run compliance on changed files only
-  uses: yourusername/compliance-autopilot@v1
+  uses: m0rphsec/compliance-autopilot@v1
   with:
     anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
     analyze-only: ${{ steps.changed-files.outputs.all_changed_files }}
@@ -117,7 +117,7 @@ Add caching to speed up subsequent runs:
     path: ~/.compliance-cache
     key: compliance-${{ hashFiles('**/*.ts') }}
 
-- uses: yourusername/compliance-autopilot@v1
+- uses: m0rphsec/compliance-autopilot@v1
   with:
     anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
     enable-cache: true
@@ -127,7 +127,7 @@ Add caching to speed up subsequent runs:
 
 Switch to Claude Haiku for faster (but less accurate) analysis:
 ```yaml
-- uses: yourusername/compliance-autopilot@v1
+- uses: m0rphsec/compliance-autopilot@v1
   with:
     anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
     claude-model: 'claude-3-haiku-20240307'  # Faster, cheaper
@@ -151,7 +151,7 @@ FATAL ERROR: Reached heap limit Allocation failed
 ### Solution A: Increase Node.js Memory
 
 ```yaml
-- uses: yourusername/compliance-autopilot@v1
+- uses: m0rphsec/compliance-autopilot@v1
   with:
     anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
   env:
@@ -161,7 +161,7 @@ FATAL ERROR: Reached heap limit Allocation failed
 ### Solution B: Process Files in Batches
 
 ```yaml
-- uses: yourusername/compliance-autopilot@v1
+- uses: m0rphsec/compliance-autopilot@v1
   with:
     anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
     batch-size: 10  # Process 10 files at a time
@@ -183,7 +183,7 @@ coverage/**
 ### Solution D: Use Streaming Mode
 
 ```yaml
-- uses: yourusername/compliance-autopilot@v1
+- uses: m0rphsec/compliance-autopilot@v1
   with:
     anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
     streaming: true  # Process files as streams
@@ -209,7 +209,7 @@ Anthropic API: 429 - Rate limit reached
 
 Wait and retry automatically:
 ```yaml
-- uses: yourusername/compliance-autopilot@v1
+- uses: m0rphsec/compliance-autopilot@v1
   with:
     anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
     retry-on-rate-limit: true
@@ -219,7 +219,7 @@ Wait and retry automatically:
 ### Solution B: Reduce Concurrent Requests
 
 ```yaml
-- uses: yourusername/compliance-autopilot@v1
+- uses: m0rphsec/compliance-autopilot@v1
   with:
     anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
     max-concurrent-requests: 3  # Default is 10
@@ -242,7 +242,7 @@ GitHub Apps have higher rate limits (5000 req/hr vs 1000 req/hr):
 2. Install on your repository
 3. Use app token:
 ```yaml
-- uses: yourusername/compliance-autopilot@v1
+- uses: m0rphsec/compliance-autopilot@v1
   with:
     github-token: ${{ steps.generate-token.outputs.token }}
     anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
@@ -267,7 +267,7 @@ PDF file not found at expected path
 
 Enable debug logging:
 ```yaml
-- uses: yourusername/compliance-autopilot@v1
+- uses: m0rphsec/compliance-autopilot@v1
   with:
     anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
   env:
@@ -278,7 +278,7 @@ Enable debug logging:
 
 If PDF fails, use JSON format:
 ```yaml
-- uses: yourusername/compliance-autopilot@v1
+- uses: m0rphsec/compliance-autopilot@v1
   with:
     anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
     report-format: 'json'
@@ -291,7 +291,7 @@ Ensure write permissions:
 - name: Create reports directory
   run: mkdir -p reports && chmod 777 reports
 
-- uses: yourusername/compliance-autopilot@v1
+- uses: m0rphsec/compliance-autopilot@v1
   with:
     anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
     output-dir: reports
@@ -329,7 +329,7 @@ permissions:
 
 Ensure running on PR event:
 ```yaml
-- uses: yourusername/compliance-autopilot@v1
+- uses: m0rphsec/compliance-autopilot@v1
   if: github.event_name == 'pull_request'
   with:
     anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
@@ -339,7 +339,7 @@ Ensure running on PR event:
 
 If comment is too large (>65536 chars), it will fail silently:
 ```yaml
-- uses: yourusername/compliance-autopilot@v1
+- uses: m0rphsec/compliance-autopilot@v1
   with:
     anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
     comment-max-length: 60000
@@ -350,7 +350,7 @@ If comment is too large (>65536 chars), it will fail silently:
 
 Instead of comment, link to artifact:
 ```yaml
-- uses: yourusername/compliance-autopilot@v1
+- uses: m0rphsec/compliance-autopilot@v1
   with:
     anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
     skip-pr-comment: true
@@ -392,7 +392,7 @@ AnthropicError: Authentication failed
 
 Ensure secret is named correctly:
 ```yaml
-- uses: yourusername/compliance-autopilot@v1
+- uses: m0rphsec/compliance-autopilot@v1
   with:
     anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}  # Must match secret name
 ```
@@ -441,7 +441,7 @@ curl https://api.anthropic.com/v1/messages \
 ### Solution A: Enable Parallel Processing
 
 ```yaml
-- uses: yourusername/compliance-autopilot@v1
+- uses: m0rphsec/compliance-autopilot@v1
   with:
     anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
     parallel: true
@@ -465,7 +465,7 @@ coverage/
 
 Only analyze changed files:
 ```yaml
-- uses: yourusername/compliance-autopilot@v1
+- uses: m0rphsec/compliance-autopilot@v1
   with:
     anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
     incremental: true
@@ -476,7 +476,7 @@ Only analyze changed files:
 
 Enable profiling:
 ```yaml
-- uses: yourusername/compliance-autopilot@v1
+- uses: m0rphsec/compliance-autopilot@v1
   with:
     anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
     profile: true
@@ -575,7 +575,7 @@ curl -X POST -H 'Content-type: application/json' \
 ### Solution C: Reduce Message Size
 
 ```yaml
-- uses: yourusername/compliance-autopilot@v1
+- uses: m0rphsec/compliance-autopilot@v1
   with:
     anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
     slack-webhook: ${{ secrets.SLACK_WEBHOOK }}
@@ -653,7 +653,7 @@ act pull_request -s ANTHROPIC_API_KEY=sk-ant-xxx
 
 Ensure using latest version:
 ```yaml
-- uses: yourusername/compliance-autopilot@v1  # Use @v1, not @main
+- uses: m0rphsec/compliance-autopilot@v1  # Use @v1, not @main
 ```
 
 ---
@@ -662,9 +662,9 @@ Ensure using latest version:
 
 If you're still stuck:
 
-1. **Search Issues**: [GitHub Issues](https://github.com/yourusername/compliance-autopilot/issues)
+1. **Search Issues**: [GitHub Issues](https://github.com/m0rphsec/compliance-autopilot/issues)
 2. **Join Discord**: [Community Chat](https://discord.gg/compliance-autopilot)
-3. **Email Support**: support@compliance-autopilot.com
+3. **Open a Ticket**: [GitHub Issues](https://github.com/m0rphsec/compliance-autopilot/issues)
 4. **Stack Overflow**: Tag with `compliance-autopilot`
 
 When reporting issues, include:
